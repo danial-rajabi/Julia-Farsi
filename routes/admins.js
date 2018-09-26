@@ -4,6 +4,8 @@ const passport = require("passport");
 
 const User = require("../models/user");
 const SaleReceipt = require("../models/sale-receipt");
+const Price = require("../models/price");
+
 const Log = require("../middlewares/log");
 const Email = require("../middlewares/email");
 const rpcserver = require("../middlewares/rpcserver");
@@ -223,17 +225,18 @@ router.post("/approve-receipt", [passport.authenticate("jwt", { session: false }
   const comment = req.body.comment;
 
   receipt = await SaleReceipt.getReceiptByNumber(receiptNumber);
-  if (receipt.status != "Unknown") {
-    throw new Error("Admin can approve unknown receipts only");
-  }
+  //   if (receipt.status != "Unknown") {
+  //     throw new Error("Admin can approve unknown receipts only");
+  //   }
   receipt.adminComment = comment;
   receipt.adminSubmitDate = new Date();
   receipt.status = "Approved";
   await receipt.save();
+  price = await Price.getLastPrice(receipt.userSubmitDate);
   user = await User.getUserByIdAsync(receipt.user);
-  user.balance += receipt.amount;
+  user.balance += receipt.amount / price.price;
+
   await user.save();
-  console.log(user);
 
   Log("URL: /admins/approve-receipt, Info: Receipt Number (" + receipt.receiptNumber + ") Approved by admin", req.user.email);
   res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") Approved by admin" });

@@ -24,7 +24,8 @@ const UserSchema = mongoose.Schema({
   registeredDate: { type: Date, default: Date.now() },
   referal: { type: String },
   contractType: { type: String, enum: ["Risky", "Normal"] },
-  roles: [{ roleTitle: String }]
+  roles: [{ roleTitle: String }],
+  balance: { type: Number, default: 0 }
 });
 
 UserSchema.plugin(autoIncrement.plugin, {
@@ -45,6 +46,14 @@ const User = (module.exports = mongoose.model("User", UserSchema));
 
 module.exports.getUserById = function(id, callback) {
   User.findById(id, callback);
+};
+
+module.exports.getUserByIdAsync = async function(id) {
+  user = await User.findById(id);
+  if (!user) {
+    throw new Error("User not found");
+  }
+  return user;
 };
 
 module.exports.getUserByStrId = async function(strId) {

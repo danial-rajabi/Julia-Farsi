@@ -52,7 +52,7 @@ app.use(passport.session());
 require("./config/passport")(passport);
 
 app.use("/users", users);
-app.use("/users", admins);
+app.use("/admins", admins);
 app.use("/exchangers", exchangers);
 app.use("/tickets", tickets);
 app.use("/rpc", rpc);

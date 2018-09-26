@@ -14,6 +14,7 @@ const Email = require("../middlewares/email");
 const config = require("../config/setting");
 const rpcserver = require("../middlewares/rpcserver");
 const ForgottenPasswordToken = require("../models/forgotPassword");
+const SaleReceipt = require("../models/sale-receipt");
 
 var storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -251,22 +252,29 @@ router.post("/receipt", passport.authenticate("jwt", { session: false }), upload
   const receiptNumber = Number(req.body.receiptNumber);
   const comment = req.body.comment;
 
-  receipt = await User.getReceiptByNumber(receiptNumber);
-  console.log(user);
-  let newReceipt = new SaleReceipt({
-    exchanger: exchangerId,
-    exchangerComment: comment,
-    exchangerSubmitDate: new Date(),
-    amount: req.body.amount,
-    user: user._id,
-    status: "Unknown"
-  });
-  if (req.file) {
-    newReceipt.exchangerReceipt = req.file.filename;
+  receipt = await SaleReceipt.getReceiptByNumber(receiptNumber);
+  if (String(receipt.user._id) != String(userId)) {
+    throw new Error("User can not view others' receipt");
+  } else {
+    receipt.userComment = comment;
+    receipt.userSubmitDate = new Date();
   }
-  receipt = await newReceipt.save();
-  Log("URL: /exchangers/receipt, Info: Receipt Number(" + receipt.receiptNumber + ") Created", req.user.email);
-  res.json({ success: true, msg: "Receipt Number(" + receipt.receiptNumber + ") Created" });
+  if (req.file) {
+    receipt.userReceipt = req.file.filename;
+  }
+  console.log(receipt);
+  receipt = await receipt.save();
+  Log("URL: /users/receipt, Info: Receipt Number (" + receipt.receiptNumber + ") Updated by user", req.user.email);
+  res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") Updated by user" });
+});
+
+// list all Receipt submited by user
+router.get("/list-receipt", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+  const userId = req.user._id;
+
+  receipts = await SaleReceipt.getUserReceipt(userId);
+  Log("URL: /users/list-receipt, Info: Receipts list returned", req.user.email);
+  res.json({ success: true, receipts: receipts });
 });
 
 module.exports = router;

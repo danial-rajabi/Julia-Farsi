@@ -42,8 +42,8 @@ router.post("/receipt", [passport.authenticate("jwt", { session: false }), uploa
     newReceipt.exchangerReceipt = req.file.filename;
   }
   receipt = await newReceipt.save();
-  Log("URL: /exchangers/receipt, Info: Receipt Number(" + receipt.receiptNumber + ") Created", req.user.email);
-  res.json({ success: true, msg: "Receipt Number(" + receipt.receiptNumber + ") Created" });
+  Log("URL: /exchangers/receipt, Info: Receipt Number (" + receipt.receiptNumber + ") Created", req.user.email);
+  res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") Created" });
 });
 
 // Get KYC informations of a user
@@ -55,8 +55,8 @@ router.post("/get-kyc", [passport.authenticate("jwt", { session: false }), autor
   return res.json({ success: true, user: user });
 });
 
-// Upload Sale Receipt by exchanger
-router.post("/list-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+// list all Receipt submited by exchanger
+router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
   const exchangerId = req.user._id;
 
   receipts = await SaleReceipt.getExchangerReceipt(exchangerId);

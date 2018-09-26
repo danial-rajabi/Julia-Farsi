@@ -3,6 +3,7 @@ const router = express.Router();
 const passport = require("passport");
 
 const User = require("../models/user");
+const SaleReceipt = require("../models/sale-receipt");
 const Log = require("../middlewares/log");
 const Email = require("../middlewares/email");
 const rpcserver = require("../middlewares/rpcserver");
@@ -185,6 +186,74 @@ router.post("/get-kyc", [passport.authenticate("jwt", { session: false }), autor
   user = await User.getUserKYC(email);
   Log("Method: GetKYCInfo, Info: Get user KYC info successfuly", req.user.email);
   return res.json({ success: true, user: user });
+});
+
+// list all Receipt submited
+router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+  receipts = await SaleReceipt.getAllReceipts();
+  Log("URL: /admins/list-receipt, Info: Receipts list returned", req.user.email);
+  res.json({ success: true, receipts: receipts });
+});
+
+// list all Receipt approved by admin
+router.get("/list-approved-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+  receipts = await SaleReceipt.getAllReceipts("Approved");
+  Log("URL: /admins/list-unknown-receipt, Info: Receipts list returned", req.user.email);
+  res.json({ success: true, receipts: receipts });
+});
+
+// list all Receipt rejected by admin
+router.get("/list-rejected-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+  receipts = await SaleReceipt.getAllReceipts("Rejected");
+  Log("URL: /admins/list-unknown-receipt, Info: Receipts list returned", req.user.email);
+  res.json({ success: true, receipts: receipts });
+});
+
+// list all Receipt submited by user and exchange and ready for admin response
+router.get("/list-unknown-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+  var hasUser = true;
+  receipts = await SaleReceipt.getAllReceipts("Unknown", hasUser);
+  Log("URL: /admins/list-unknown-receipt, Info: Receipts list returned", req.user.email);
+  res.json({ success: true, receipts: receipts });
+});
+
+// approve receipt by admin
+router.post("/approve-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+  const receiptNumber = Number(req.body.receiptNumber);
+  const comment = req.body.comment;
+
+  receipt = await SaleReceipt.getReceiptByNumber(receiptNumber);
+  if (receipt.status != "Unknown") {
+    throw new Error("Admin can approve unknown receipts only");
+  }
+  receipt.adminComment = comment;
+  receipt.adminSubmitDate = new Date();
+  receipt.status = "Approved";
+  await receipt.save();
+  user = await User.getUserByIdAsync(receipt.user);
+  user.balance += receipt.amount;
+  await user.save();
+  console.log(user);
+
+  Log("URL: /admins/approve-receipt, Info: Receipt Number (" + receipt.receiptNumber + ") Approved by admin", req.user.email);
+  res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") Approved by admin" });
+});
+
+// reject receipt by admin
+router.post("/reject-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+  const receiptNumber = Number(req.body.receiptNumber);
+  const comment = req.body.comment;
+
+  receipt = await SaleReceipt.getReceiptByNumber(receiptNumber);
+  if (receipt.status != "Unknown") {
+    throw new Error("Admin can reject unknown receipts only");
+  }
+  receipt.adminComment = comment;
+  receipt.adminSubmitDate = new Date();
+  receipt.status = "Rejected";
+  receipt = await receipt.save();
+  Log("URL: /admins/approve-receipt, Info: Receipt Number (" + receipt.receiptNumber + ") rejected by admin", req.user.email);
+  res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") rejected by admin" });
 });
 
 module.exports = router;

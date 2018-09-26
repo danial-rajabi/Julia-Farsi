@@ -17,6 +17,11 @@ module.exports = async function(req, res, next) {
     case "/admins/disable":
       role = ["userManager"];
       break;
+    case "/admins/list-receipt":
+    case "/admins/approve-receipt":
+    case "/admins/reject-receipt":
+      role = ["financeManager"];
+      break;
     case "/tickets/answer":
     case "/tickets/listall":
       role = ["answerTicket"];

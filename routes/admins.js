@@ -37,7 +37,7 @@ router.post("/verifykyc", [passport.authenticate("jwt", { session: false }), aut
     user.enabled = true;
 
     await user.save();
-    Log("URL: /users/verifykyc, Info: User(" + user.email + ") KYC verified", req.user.email);
+    Log(req, "Info: User(" + user.email + ") KYC verified", req.user.email);
     return res.json({ success: true, msg: "User KYC verified" });
   } else {
     var mailContent = "Hi " + user.firstName + "<br>";
@@ -70,7 +70,7 @@ router.post("/verifykyc", [passport.authenticate("jwt", { session: false }), aut
     user.KYCVerified = false;
     user.KYCUpdated = false;
     await user.save();
-    Log("URL: /users/verifykyc, Info: User(" + user.email + ") KYC not verified", req.user.email);
+    Log(req, "Info: User(" + user.email + ") KYC not verified", req.user.email);
     return res.json({ success: true, msg: "User KYC not verified" });
   }
 });
@@ -80,7 +80,7 @@ router.post("/disable", [passport.authenticate("jwt", { session: false }), autor
   const adminRoles = req.user.roles;
   hasRole = await User.hasRole(adminRoles, ["userManager"]);
   if (!hasRole) {
-    Log("Method: DisableUser, Error: User has not permission to disable users", req.user.email);
+    Log(req, "Error: User has not permission to disable users", req.user.email);
     return res.sendStatus(401);
   } else {
     const email = req.body.email;
@@ -90,12 +90,12 @@ router.post("/disable", [passport.authenticate("jwt", { session: false }), autor
     rpcResponse = await rpcserver.removeFromWhiteList(user.walletAddress, null);
 
     if (rpcResponse.success) {
-      Log("Method: DisableUser, Info: Wallet(" + user.walletAddress + ") removed from whitelist, txID: " + body.msg, "SYSTEM");
+      Log(req, "Info: Wallet(" + user.walletAddress + ") removed from whitelist, txID: " + body.msg, "SYSTEM");
       await user.save();
-      Log("Method: DisableUser, Info: User(" + email + ") disabled successfuly", req.user.email);
+      Log(req, "Info: User(" + email + ") disabled successfuly", req.user.email);
       return res.json({ success: true, msg: "User disabled successfuly" });
     } else {
-      Log("Method: DisableUser, Error: " + body.msg + "while remove wallet (" + user.walletAddress + ") from whitelist", "SYSTEM");
+      Log(req, "Error: " + body.msg + "while remove wallet (" + user.walletAddress + ") from whitelist", "SYSTEM");
       return res.json({ success: false, msg: rpcResponse.msg });
     }
   }
@@ -110,13 +110,12 @@ router.post("/enable", [passport.authenticate("jwt", { session: false }), autori
   rpcResponse = await rpcserver.addToWhiteList(user.walletAddress, null);
 
   if (rpcResponse.success) {
-    Log("Method: EnableUser, Info: Wallet(" + user.walletAddress + ") added to whitelist, txID: " + rpcResponse.msg, "SYSTEM");
+    Log(req, "Info: Wallet(" + user.walletAddress + ") added to whitelist, txID: " + rpcResponse.msg, "SYSTEM");
     await user.save();
-    Log("Method: EnableUser, Info: User(" + email + ") enabled successfuly", req.user.email);
+    Log(req, "Info: User(" + email + ") enabled successfuly", req.user.email);
     return res.json({ success: true, msg: "Contract Signed successfuly" });
   } else {
-    Log("Method: EnableUser, Error: " + rpcResponse.msg + "while add wallet (" + user.walletAddress + ") to whitelist", "SYSTEM");
-    return res.json({ success: false, msg: rpcResponse.msg });
+    throw new Error(rpcResponse.msg);
   }
 });
 
@@ -161,7 +160,7 @@ router.post("/changeroles", [passport.authenticate("jwt", { session: false }), a
       });
       roleStr = roleStr.slice(0, -1);
       await user.save();
-      Log("Method: ChangeRoles, Info: Roles(" + roleStr + ") of User(" + email + ") changed successfuly", req.user.email);
+      Log(req, "Info: Roles(" + roleStr + ") of User(" + email + ") changed successfuly", req.user.email);
       return res.json({ success: true, msg: "Roles change Successfuly" });
     }
   }
@@ -170,14 +169,14 @@ router.post("/changeroles", [passport.authenticate("jwt", { session: false }), a
 // Get Users List for Change roles
 router.get("/listroles", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
   users = await User.getUsersListRoles();
-  Log("Method: GetUserListRoles, Info: Get users list successfuly", req.user.email);
+  Log(req, "Info: Get users list successfuly", req.user.email);
   return res.json({ success: true, users: users });
 });
 
 // Get Users List for KYC
 router.get("/listkyc", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
   users = await User.getUsersListKYC();
-  Log("Method: GetUserListKYC, Info: Get users list successfuly", req.user.email);
+  Log(req, "Info: Get users list successfuly", req.user.email);
   return res.json({ success: true, users: users });
 });
 
@@ -186,36 +185,36 @@ router.post("/get-kyc", [passport.authenticate("jwt", { session: false }), autor
   const email = req.body.email;
 
   user = await User.getUserKYC(email);
-  Log("Method: GetKYCInfo, Info: Get user KYC info successfuly", req.user.email);
+  Log(req, "Info: Get user KYC info successfuly", req.user.email);
   return res.json({ success: true, user: user });
 });
 
 // list all Receipt submited
 router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
   receipts = await SaleReceipt.getAllReceipts();
-  Log("URL: /admins/list-receipt, Info: Receipts list returned", req.user.email);
+  Log(req, "Info: Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
 
 // list all Receipt approved by admin
 router.get("/list-approved-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
   receipts = await SaleReceipt.getAllReceipts("Approved");
-  Log("URL: /admins/list-unknown-receipt, Info: Receipts list returned", req.user.email);
+  Log(req, "Info: Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
 
 // list all Receipt rejected by admin
 router.get("/list-rejected-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
   receipts = await SaleReceipt.getAllReceipts("Rejected");
-  Log("URL: /admins/list-unknown-receipt, Info: Receipts list returned", req.user.email);
+  Log(req, "Info: Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
 
 // list all Receipt submited by user and exchange and ready for admin response
-router.get("/list-unknown-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+router.get("/list-pending-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
   var hasUser = true;
-  receipts = await SaleReceipt.getAllReceipts("Unknown", hasUser);
-  Log("URL: /admins/list-unknown-receipt, Info: Receipts list returned", req.user.email);
+  receipts = await SaleReceipt.getAllReceipts("Pending", hasUser);
+  Log(req, "Info: Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
 
@@ -225,9 +224,11 @@ router.post("/approve-receipt", [passport.authenticate("jwt", { session: false }
   const comment = req.body.comment;
 
   receipt = await SaleReceipt.getReceiptByNumber(receiptNumber);
-  //   if (receipt.status != "Unknown") {
-  //     throw new Error("Admin can approve unknown receipts only");
+  //   if (receipt.status != "Pending") {
+  //     throw new Error("Admin can approve pending receipts only");
   //   }
+  receipt.admin = req.user._id;
+  receipt.adminEmail = req.user.email;
   receipt.adminComment = comment;
   receipt.adminSubmitDate = new Date();
   receipt.status = "Approved";
@@ -238,7 +239,7 @@ router.post("/approve-receipt", [passport.authenticate("jwt", { session: false }
 
   await user.save();
 
-  Log("URL: /admins/approve-receipt, Info: Receipt Number (" + receipt.receiptNumber + ") Approved by admin", req.user.email);
+  Log(req, "Info: Receipt Number (" + receipt.receiptNumber + ") Approved by admin", req.user.email);
   res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") Approved by admin" });
 });
 
@@ -248,14 +249,16 @@ router.post("/reject-receipt", [passport.authenticate("jwt", { session: false })
   const comment = req.body.comment;
 
   receipt = await SaleReceipt.getReceiptByNumber(receiptNumber);
-  if (receipt.status != "Unknown") {
-    throw new Error("Admin can reject unknown receipts only");
+  if (receipt.status != "Pending") {
+    throw new Error("Admin can reject pending receipts only");
   }
+  receipt.admin = req.user._id;
+  receipt.adminEmail = req.user.email;
   receipt.adminComment = comment;
   receipt.adminSubmitDate = new Date();
   receipt.status = "Rejected";
   receipt = await receipt.save();
-  Log("URL: /admins/approve-receipt, Info: Receipt Number (" + receipt.receiptNumber + ") rejected by admin", req.user.email);
+  Log(req, "Info: Receipt Number (" + receipt.receiptNumber + ") rejected by admin", req.user.email);
   res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") rejected by admin" });
 });
 

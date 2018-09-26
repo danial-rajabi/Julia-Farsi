@@ -37,7 +37,7 @@ router.post("/create", passport.authenticate("jwt", { session: false }), upload.
     newTicket.attachmentName = req.file.originalname;
   }
   await newTicket.save();
-  Log("Method: CreateTicket, Info: Ticket Number " + newTicket.ticketNumber + " Created", req.user.email);
+  Log(req, "Info: Ticket Number " + newTicket.ticketNumber + " Created", req.user.email);
   res.json({ success: true, msg: "Ticket Number " + newTicket.ticketNumber + " Created" });
 });
 
@@ -52,7 +52,7 @@ router.post("/cancel", passport.authenticate("jwt", { session: false }), async (
   } else {
     ticket.status = "Canceled";
     await ticket.save();
-    Log("Method: CancelTicket, Info: Ticket Number(" + ticketNumber + ") Canceled Successfuly", req.user.email);
+    Log(req, "Info: Ticket Number(" + ticketNumber + ") Canceled Successfuly", req.user.email);
     res.json({ success: true, msg: "Ticket Number(" + ticketNumber + ") Canceled Successfuly" });
   }
 });
@@ -68,7 +68,7 @@ router.post("/resolve", passport.authenticate("jwt", { session: false }), async 
   } else {
     ticket.status = "Closed";
     await ticket.save();
-    Log("Method: ResolveTicket, Info: Ticket Number(" + ticketNumber + ") Closed Successfuly", req.user.email);
+    Log(req, "Info: Ticket Number(" + ticketNumber + ") Closed Successfuly", req.user.email);
     res.json({ success: true, msg: "Ticket Number(" + ticketNumber + ") Closed Successfuly" });
   }
 });
@@ -88,7 +88,7 @@ router.post("/replay", passport.authenticate("jwt", { session: false }), async (
     ticket.lastReplayDate = new Date();
     ticket.status = "Open";
     ticket.save();
-    Log("Method: ReplayTicket, Info: Ticket Number(" + ticketNumber + ") Replayed Successfuly", req.user.email);
+    Log(req, "Info: Ticket Number(" + ticketNumber + ") Replayed Successfuly", req.user.email);
     res.json({ success: true, msg: "Ticket Number(" + ticketNumber + ") Replayed Successfuly" });
   }
 });
@@ -114,21 +114,21 @@ router.post("/answer", [passport.authenticate("jwt", { session: false }), autori
     mailContent += "Admin's answer is: '" + answerDesc + "'";
     Email.sendMail(ticket.userEmail, "Your ticket answered", mailContent);
   }
-  Log("Method: AnswerTicket, Info: Ticket Number(" + ticketNumber + ") Answered Successfuly", req.user.email);
+  Log(req, "Info: Ticket Number(" + ticketNumber + ") Answered Successfuly", req.user.email);
   res.json({ success: true, msg: "Ticket Number(" + ticketNumber + ") Answered Successfuly" });
 });
 
 // List All tickets , all Status By Admin
 router.get("/listall", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
   tickets = await Ticket.getAllTicket("", "");
-  Log("Method: ListAllTicketByAdmin, Info: Admin Gets All Tickets", req.user.email);
+  Log(req, "Info: Admin Gets All Tickets", req.user.email);
   return res.json({ success: true, tickets: tickets });
 });
 
 // List All Open tickets By Admin
 router.get("/listallopen", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
   tickets = await Ticket.getAllTicket("", "Open");
-  Log("Method: ListAllOpenTicketByAdmin, Info: Admin Gets All Tickets", req.user.email);
+  Log(req, "Info: Admin Gets All Tickets", req.user.email);
   return res.json({ success: true, tickets: tickets });
 });
 
@@ -137,7 +137,7 @@ router.get("/listmy", passport.authenticate("jwt", { session: false }), async (r
   const userEmail = req.user.email;
 
   tickets = await Ticket.getAllTicket(userEmail, "");
-  Log("Method: ListAllTicketByUser, Info: User Gets All Own Tickets", req.user.email);
+  Log(req, "Info: User Gets All Own Tickets", req.user.email);
   return res.json({ success: true, tickets: tickets });
 });
 
@@ -146,7 +146,7 @@ router.get("/listmyopen", passport.authenticate("jwt", { session: false }), asyn
   const userEmail = req.user.email;
 
   tickets = await Ticket.getAllTicket(userEmail, "Open");
-  Log("Method: ListAllOpenTicketByUser, Info: User Gets Own Open Tickets", req.user.email);
+  Log(req, "Info: User Gets Own Open Tickets", req.user.email);
   return res.json({ success: true, tickets: tickets });
 });
 

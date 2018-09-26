@@ -34,7 +34,6 @@ router.post("/register", async (req, res, next) => {
     password: req.body.password,
     referal: req.body.referal
   });
-  // console.log(newUser);
   isValid = await User.checkReferal(newUser.referal);
   if (isValid) {
     user = await User.addUser(newUser);
@@ -50,7 +49,7 @@ router.post("/register", async (req, res, next) => {
       user.emailVerificationToken +
       '">Verifiy Email Address</a>';
     Email.sendMail(user.email, "Verification Email", mailContent);
-    Log("Method: RegisterUser, Info: User registered successfuly", user.email);
+    Log(req, "Info: User registered successfuly", user.email);
     return res.json({
       success: true,
       msg: "Your account created successfuly, please verify your email via verification link sent to your meilbox"
@@ -73,7 +72,7 @@ router.post("/authenticate", async (req, res, next) => {
     const token = jwt.sign(user.toJSON(), config.secret, {
       expiresIn: 604800 // 1 week in sec
     });
-    Log("Method: Authenticate, Info: User authenticated successfuly", email);
+    Log(req, "Info: User authenticated successfuly", email);
     user["password"] = "***";
     return res.json({
       success: true,
@@ -91,12 +90,12 @@ router.get("/verifyemail", async (req, res, next) => {
   const email = req.query.email;
   user = await User.getUserByEmail(email);
   if (user.emailVerificationToken != verificationToken) {
-    Log("Method: VerifyEmail, Error: Wrong Token", email);
+    Log(req, "Error: Wrong Token", email);
     return res.redirect('/panel/#/login?msg="Email Not Verified, Wrong Token"');
   } else {
     user.emailVerified = true;
     await user.save();
-    Log("Method: VerifyEmail, Info: Email Verified successfuly", email);
+    Log(req, "Info: Email Verified successfuly", email);
     return res.redirect('/panel/#/login?msg="Email Verified successfuly"');
   }
 });
@@ -136,7 +135,7 @@ router.post("/resetpassword", async (req, res, next) => {
     } else {
       user = await User.getUserByEmail(email);
       user = await User.changePassword(user, password);
-      Log("Method: PasswordReset, Info: Password reset successfuly", user.email);
+      Log(req, "Info: Password reset successfuly", user.email);
       return res.json({
         success: true,
         msg: "Password reset successfuly"
@@ -158,7 +157,7 @@ router.post("/changepassword", passport.authenticate("jwt", { session: false }),
   isMatch = await User.comparePassword(oldPassword, user.password);
   if (isMatch) {
     user = await User.changePassword(user, newPassword);
-    Log("Method: ChangePassword, Info: Password changed successfuly", user.email);
+    Log(req, "Info: Password changed successfuly", user.email);
     return res.json({
       success: true,
       msg: "Password changed successfuly"
@@ -201,7 +200,7 @@ router.post("/updatekyc", passport.authenticate("jwt", { session: false }), uplo
     }
   }
 
-  Log("Method: UpdateKYC, Info: User KYC Updated", user.email);
+  Log(req, "Info: User KYC Updated", user.email);
   return res.json({ success: true, msg: "User KYC Updated" });
 });
 
@@ -212,7 +211,7 @@ router.post("/sign-contract", passport.authenticate("jwt", { session: false }), 
   user = await User.getUserByEmail(email);
 
   if (!user.KYCVerified) {
-    Log("Method: SignContract, Error: KYC not verified yet", email);
+    Log(req, "Error: KYC not verified yet", email);
     return res.json({ success: false, msg: "KYC not verified, please update your KYC and wait to verify by admin" });
   } else {
     user.contractType = contractType;
@@ -223,13 +222,12 @@ router.post("/sign-contract", passport.authenticate("jwt", { session: false }), 
     rpcResponse = await rpcserver.addToWhiteList(user.walletAddress, referWallet);
 
     if (rpcResponse.success) {
-      Log("Method: SignContract, Info: Wallet(" + user.walletAddress + ") added to whitelist, txID: " + rpcResponse.msg, "SYSTEM");
+      Log(req, "Info: Wallet(" + user.walletAddress + ") added to whitelist, txID: " + rpcResponse.msg, "SYSTEM");
       await user.save();
-      Log("Method: SignContract, Info: Contract (" + contractType + ") signed by user", req.user.email);
+      Log(req, "Info: Contract (" + contractType + ") signed by user", req.user.email);
       return res.json({ success: true, msg: "Contract Signed successfuly" });
     } else {
-      Log("Method: SignContract, Error: " + rpcResponse.msg + "while add wallet (" + user.walletAddress + ") to whitelist", "SYSTEM");
-      return res.json({ success: false, msg: rpcResponse.msg });
+      throw new Error(rpcResponse.msg);
     }
   }
 });
@@ -242,7 +240,7 @@ router.get("/getreferal", passport.authenticate("jwt", { session: false }), asyn
   referals.forEach(function(referal, index, array) {
     ReferedUsers.push({ email: referal.email });
   });
-  Log("Method: GetReferals, Info: Get Refeals successfuly", req.user.email);
+  Log(req, "Info: Get Refeals successfuly", req.user.email);
   return res.json({ success: true, referals: ReferedUsers });
 });
 
@@ -262,19 +260,36 @@ router.post("/receipt", passport.authenticate("jwt", { session: false }), upload
   if (req.file) {
     receipt.userReceipt = req.file.filename;
   }
-  console.log(receipt);
   receipt = await receipt.save();
-  Log("URL: /users/receipt, Info: Receipt Number (" + receipt.receiptNumber + ") Updated by user", req.user.email);
+  Log(req, "Info: Receipt Number (" + receipt.receiptNumber + ") Updated by user", req.user.email);
   res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") Updated by user" });
 });
 
-// list all Receipt submited by user
+// list all Receipt submited for user
 router.get("/list-receipt", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
   const userId = req.user._id;
 
-  receipts = await SaleReceipt.getUserReceipt(userId);
-  Log("URL: /users/list-receipt, Info: Receipts list returned", req.user.email);
+  receipts = await SaleReceipt.getUserReceipts(userId);
+  Log(req, "Info: Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
+});
+
+// list all Pending Receipt submited for user
+router.get("/list-pending-receipt", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+  const userId = req.user._id;
+
+  receipts = await SaleReceipt.getUserReceipts(userId, "Pending");
+  Log(req, "Info: Pending Receipts list returned", req.user.email);
+  res.json({ success: true, receipts: receipts });
+});
+
+// return user balance
+router.get("/balance", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+  const email = req.user.email;
+
+  user = await User.getUserByEmail(email);
+  Log(req, "Info: Balance returned", req.user.email);
+  res.json({ success: true, balance: user.balance });
 });
 
 module.exports = router;

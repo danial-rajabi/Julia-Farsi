@@ -9,7 +9,6 @@ module.exports.addToWhiteList = async function(userWallet, referWallet) {
     //     headers: { Authorization: "sssaa" },
     json: true
   };
-  console.log(options);
 
   res = await rp(options);
   return res;
@@ -23,7 +22,6 @@ module.exports.removeFromWhiteList = async function(userWallet) {
     //     headers: { Authorization: "sssaa" },
     json: true
   };
-  console.log(options);
 
   res = await rp(options);
   return res;

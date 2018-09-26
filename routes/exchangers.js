@@ -24,25 +24,24 @@ var upload = multer({ storage: storage });
 
 // Upload Sale Receipt by exchanger
 router.post("/receipt", [passport.authenticate("jwt", { session: false }), upload.single("receipt"), autorize], async (req, res, next) => {
-  const exchangerId = req.user._id;
   const userNumber = Number(req.body.userNumber);
-  const comment = req.body.comment;
 
   user = await User.getUserByNumber(userNumber);
-  console.log(user);
   let newReceipt = new SaleReceipt({
-    exchanger: exchangerId,
-    exchangerComment: comment,
+    exchanger: req.user._id,
+    exchangerEmail: req.user.email,
+    exchangerComment: req.body.comment,
     exchangerSubmitDate: new Date(),
     amount: req.body.amount,
     user: user._id,
-    status: "Unknown"
+    userEmail: user.email,
+    status: "Pending"
   });
   if (req.file) {
     newReceipt.exchangerReceipt = req.file.filename;
   }
   receipt = await newReceipt.save();
-  Log("URL: /exchangers/receipt, Info: Receipt Number (" + receipt.receiptNumber + ") Created", req.user.email);
+  Log(req, "Info: Receipt Number (" + receipt.receiptNumber + ") Created", req.user.email);
   res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") Created" });
 });
 
@@ -51,7 +50,7 @@ router.post("/get-kyc", [passport.authenticate("jwt", { session: false }), autor
   const userNumber = Number(req.body.userNumber);
 
   user = await User.getUserKYCByNumber(userNumber);
-  Log("URL: /exchangers/get-kyc, Info: Get user KYC info successfuly", req.user.email);
+  Log(req, "Info: Get user KYC info successfuly", req.user.email);
   return res.json({ success: true, user: user });
 });
 
@@ -59,8 +58,8 @@ router.post("/get-kyc", [passport.authenticate("jwt", { session: false }), autor
 router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
   const exchangerId = req.user._id;
 
-  receipts = await SaleReceipt.getExchangerReceipt(exchangerId);
-  Log("URL: /exchangers/list-receipt, Info: Receipts list returned", req.user.email);
+  receipts = await SaleReceipt.getExchangerReceipts(exchangerId);
+  Log(req, "Info: Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
 

@@ -1,24 +1,28 @@
 const mongoose = require("mongoose");
 var Schema = mongoose.Schema;
+const User = require("../models/user");
 
 // Price Schema
 const SaleReceiptSchema = mongoose.Schema({
   amount: { type: Number, required: true },
-  exchangerReceipt: { type: String },
-  exchangerComment: { type: String },
   exchanger: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  exchangerEmail: { type: String, required: true },
+  exchangerComment: { type: String },
+  exchangerReceipt: { type: String },
   exchangerSubmitDate: { type: Date, default: Date.now() },
   user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  userEmail: { type: String, required: true },
   userComment: { type: String },
   userReceipt: { type: String },
   userSubmitDate: { type: Date },
   admin: { type: Schema.Types.ObjectId, ref: "User" },
+  adminEmail: { type: String },
   adminComment: { type: String },
   adminSubmitDate: { type: Date },
   status: {
     type: String,
-    enum: ["Unknown", "Approved", "Rejected"],
-    default: "Unknown"
+    enum: ["Pending", "Approved", "Rejected"],
+    default: "Pending"
   }
 });
 
@@ -40,16 +44,17 @@ module.exports.getReceiptByNumber = async function(receiptNumber) {
   return receipt;
 };
 
-module.exports.getExchangerReceipt = async function(exchanger) {
+module.exports.getExchangerReceipts = async function(exchanger) {
   const query = { exchanger: exchanger };
-  //   console.log(query);
 
   return await SaleReceipt.find(query);
 };
 
-module.exports.getUserReceipt = async function(userId) {
+module.exports.getUserReceipts = async function(userId, reqStatus) {
   const query = { user: userId };
-  //   console.log(query);
+  if (reqStatus) {
+    query["status"] = reqStatus;
+  }
 
   return await SaleReceipt.find(query);
 };

@@ -39,7 +39,7 @@ module.exports = async function(req, res, next) {
   }
   hasRole = await User.hasRole(adminRoles, role);
   if (!hasRole) {
-    Log("URL: " + req.originalUrl + ", Error: Unauthorized action", req.user.email);
+    Log(req, "Error: Unauthorized action", req.user.email);
     return res.sendStatus(401);
   } else {
     next();

@@ -81,7 +81,6 @@ module.exports.getUserByEmail = async function(email) {
 // Get user by userNumber
 module.exports.getUserByNumber = async function(userNumber) {
   const query = { UserNumber: userNumber };
-  console.log(query);
 
   user = await User.findOne(query);
   if (!user) {

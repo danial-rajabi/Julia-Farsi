@@ -8,6 +8,6 @@ module.exports = function(err, req, res, next) {
     email = req.body.email;
   }
 
-  Log("URL: " + req.originalUrl + ", Error: " + err.message, email);
+  Log(req, "Error: " + err.message, email);
   res.json({ success: false, msg: err.message });
 };

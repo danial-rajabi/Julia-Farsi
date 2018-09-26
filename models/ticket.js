@@ -71,7 +71,7 @@ async function closeOldAnsweredTickets() {
     }
     ticket.status = "Closed";
     await icket.save();
-    Log("Method: CloseTicketAuthomaticaly, Info: Ticket number(" + ticket.ticketNumber + ") Closed", "SYSTEM");
+    Log(req, "Info: Ticket number(" + ticket.ticketNumber + ") Closed", "SYSTEM");
   });
   //Repeat Function every minute
   setTimeout(closeOldAnsweredTickets, 60000);

@@ -13,7 +13,7 @@ router.post("/token-price", [passport.authenticate("jwt", { session: false }), a
     date: Date.now()
   });
   await newPrice.save();
-  Log("Method: SetPrice, Info: New Price Saved", "");
+  Log(req, "Info: New Price Saved", "");
   return res.json({ success: true, msg: "New Price Saved" });
 });
 
@@ -22,13 +22,13 @@ router.post("/get-price", async (req, res, next) => {
   to = req.body.to;
 
   prices = await Price.getPrice(from, to);
-  Log("Method: GetPrice, Info: Get price list", "");
+  Log(req, "Info: Get price list", "");
   return res.json({ success: true, prices: prices });
 });
 
 router.post("/get-last-price", async (req, res, next) => {
   price = await Price.getLastPrice();
-  Log("Method: GetLastPrice, Info: Get last price in " + type + "(" + price.price + ")", "");
+  Log(req, "Info: Get last price in " + type + "(" + price.price + ")", "");
   return res.json({ success: true, price: price });
 });
 

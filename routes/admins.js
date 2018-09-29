@@ -304,7 +304,7 @@ router.post("/approve-burn", [passport.authenticate("jwt", { session: false }), 
   burnRequest.adminComment = req.body.comment;
   burnRequest.adminSubmitDate = new Date();
   burnRequest.status = "Approved";
-  user = await User.getUserByIdAsync(receipt.user);
+  user = await User.getUserByIdAsync(burnRequest.user);
   if (burnRequest.amount > burnRequest.balance) {
     throw new Error("Requested amount greater than user's balance");
   }

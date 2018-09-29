@@ -18,7 +18,7 @@ const BurnRequestSchema = mongoose.Schema({
   adminSubmitDate: { type: Date },
   status: {
     type: String,
-    enum: ["Pending", "Approved", "Rejected"],
+    enum: ["Pending", "Approved", "Rejected", "Canceled"],
     default: "Pending"
   }
 });
@@ -47,7 +47,9 @@ module.exports.getUserBurnRequests = async function(userId, reqStatus) {
     query["status"] = reqStatus;
   }
 
-  return await BurnRequest.find(query);
+  return await BurnRequest.find(query, { _id: 0, verificationToken: 0, verificationTokenExpire: 0 })
+    .sort("-date")
+    .exec();
 };
 
 module.exports.getAllBurnRequests = async function(reqStatus) {
@@ -57,5 +59,7 @@ module.exports.getAllBurnRequests = async function(reqStatus) {
     query["status"] = reqStatus;
   }
 
-  return await BurnRequest.find(query);
+  return await BurnRequest.find(query, { _id: 0, verificationToken: 0, verificationTokenExpire: 0 })
+    .sort("-date")
+    .exec();
 };

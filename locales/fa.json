@@ -1,4 +1,13 @@
 {
   "verifyEmailContent %s %s %s": "سلام <br> حساب کاربری شما با موفقیت ایجاد شد. برای تایید ایمیل خود بر روی لینک زیر کلیک نمایید:<br><a href=\"%s/users/verifyemail?email=%s&verificationToken=%s\">تایید آدرس ایمیل</a>",
-  "Verify Email Address": "تایید آدرس ایمیل"
+  "Verify Email Address": "تایید آدرس ایمیل",
+  "Your account created successfuly, please verify your email via verification link sent to your meilbox": "حساب کاربری شما با موفقیت ایجاد شد. لظفا وارد ایمیل خود شوید و از طریق لینک ارسال شده، ایمیل خود را تایید کنید ",
+  "Email not verified": "ایمیل شما هنوز تایید نشده است، لطفا وارد ایمیل خود شوید و آن را تایید نمایید.",
+  "Wrong Password": "رمزعبور وارد شده صحیح نیست",
+  "Email Not Verified, Wrong Token": "توکن وارد شده صحیح نیست،‌ایمیل تایید نشد",
+  "Email Verified successfuly": "ایمیل شما با موفقیت تایید شد",
+  "BurnRequest Number %i Submited": "درخواست فروش توکن شماره %i ثبت اولیه شد",
+  "BurnRequest Number %i Canceled": "درخواست فروش توکن شماره %i کنسل شد",
+  "BurnRequest Number %i Verified": "درخواست فروش توکن شماره %i ثبت نهایی شد",
+  "Verification email for BurnRequest Number %i resent": "ایمیل تایید برای درخواست فروش توکن شماره %i مجدد ارسال شد"
 }

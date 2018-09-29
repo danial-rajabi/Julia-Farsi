@@ -9,5 +9,6 @@ module.exports = function(err, req, res, next) {
   }
 
   Log(req, "Error: " + err.message, email);
-  res.json({ success: false, msg: err.message });
+
+  res.json({ success: false, msg: __(err.message) });
 };

@@ -42,12 +42,11 @@ router.post("/register", i18n, async (req, res, next) => {
   if (isValid) {
     user = await User.addUser(newUser);
     var mailContent = __("verifyEmailContent %s %s %s", config.serverAddr, user.email, user.emailVerificationToken);
-    console.log(mailContent);
-    Email.sendMail(user.email, "Verification Email", mailContent);
+    Email.sendMail(user.email, __("Verify Email Address"), mailContent);
     Log(req, "Info: User registered successfuly", user.email);
     return res.json({
       success: true,
-      msg: "Your account created successfuly, please verify your email via verification link sent to your meilbox"
+      msg: __("Your account created successfuly, please verify your email via verification link sent to your meilbox")
     });
   }
 });
@@ -80,18 +79,18 @@ router.post("/authenticate", async (req, res, next) => {
 });
 
 // Verify Email
-router.get("/verifyemail", async (req, res, next) => {
+router.get("/verifyemail", i18n, async (req, res, next) => {
   const verificationToken = req.query.verificationToken;
   const email = req.query.email;
   user = await User.getUserByEmail(email);
   if (user.emailVerificationToken != verificationToken) {
     Log(req, "Error: Wrong Token", email);
-    return res.redirect('/panel/#/login?msg="Email Not Verified, Wrong Token"');
+    return res.redirect('/panel/#/login?msg="' + __("Email Not Verified, Wrong Token") + '"');
   } else {
     user.emailVerified = true;
     await user.save();
     Log(req, "Info: Email Verified successfuly", email);
-    return res.redirect('/panel/#/login?msg="Email Verified successfuly"');
+    return res.redirect('/panel/#/login?msg="' + __("Email Verified successfuly") + '"');
   }
 });
 
@@ -290,7 +289,6 @@ router.get("/balance", passport.authenticate("jwt", { session: false }), async (
 // request to burn some token and give mony
 router.post("/burn", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
   const amount = req.body.amount;
-  console.log(amount);
 
   if (amount > req.user.balance) {
     throw new Error("Requested amount greater than your balance");
@@ -314,7 +312,21 @@ router.post("/burn", passport.authenticate("jwt", { session: false }), async (re
   mailContent += "Verification Token : " + burnRequest.verificationToken;
   Email.sendMail(req.user.email, "Verify Burn Request", mailContent);
   Log(req, "Info: BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Submited", req.user.email);
-  res.json({ success: true, msg: "BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Submited" });
+  res.json({ success: true, msg: __("BurnRequest Number %i Submited", burnRequest.BurnRequestNumber) });
+});
+
+// request to burn some token and give mony
+router.post("/burn-cancel", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+  const userId = req.user._id;
+  const burnRequestNumber = Number(req.body.burnRequestNumber);
+  burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
+  if (String(burnRequest.user._id) != String(userId)) {
+    throw new Error("User can not cancel others' burnRequest");
+  }
+  burnRequest.status = "Canceled";
+  await burnRequest.save();
+  Log(req, "Info: BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Canceled", req.user.email);
+  res.json({ success: true, msg: __("BurnRequest Number %i Canceled", burnRequest.BurnRequestNumber) });
 });
 
 // Verify Burn resend token
@@ -331,7 +343,7 @@ router.post("/burn-resend-token", passport.authenticate("jwt", { session: false 
   mailContent += "Verification Token : " + burnRequest.verificationToken;
   Email.sendMail(req.user.email, "Verify Burn Request", mailContent);
   Log(req, "Info: Verification email for BurnRequest Number (" + burnRequest.BurnRequestNumber + ") resent", req.user.email);
-  res.json({ success: true, msg: "Verification email for BurnRequest Number (" + burnRequest.BurnRequestNumber + ") resent" });
+  res.json({ success: true, msg: ــ("Verification email for BurnRequest Number %i resent", burnRequest.BurnRequestNumber) });
 });
 
 // Verify Burn
@@ -349,7 +361,7 @@ router.post("/burn-verify", passport.authenticate("jwt", { session: false }), as
   burnRequest.verified = true;
   await burnRequest.save();
   Log(req, "Info: BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Verified", req.user.email);
-  res.json({ success: true, msg: "BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Verified" });
+  res.json({ success: true, msg: __("BurnRequest Number %i Verified", burnRequest.BurnRequestNumber) });
 });
 
 // list all BurnRequests submited for user

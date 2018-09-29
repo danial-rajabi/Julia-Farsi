@@ -3,8 +3,9 @@ const router = express.Router();
 const passport = require("passport");
 
 const User = require("../models/user");
-const SaleReceipt = require("../models/sale-receipt");
+const Receipt = require("../models/receipt");
 const Price = require("../models/price");
+const BurnRequest = require("../models/burnRequest");
 
 const Log = require("../middlewares/log");
 const Email = require("../middlewares/email");
@@ -191,30 +192,30 @@ router.post("/get-kyc", [passport.authenticate("jwt", { session: false }), autor
 
 // list all Receipt submited
 router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
-  receipts = await SaleReceipt.getAllReceipts();
+  receipts = await Receipt.getAllReceipts();
   Log(req, "Info: Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
 
 // list all Receipt approved by admin
 router.get("/list-approved-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
-  receipts = await SaleReceipt.getAllReceipts("Approved");
-  Log(req, "Info: Receipts list returned", req.user.email);
+  receipts = await Receipt.getAllReceipts("Approved");
+  Log(req, "Info: Approved Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
 
 // list all Receipt rejected by admin
 router.get("/list-rejected-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
-  receipts = await SaleReceipt.getAllReceipts("Rejected");
-  Log(req, "Info: Receipts list returned", req.user.email);
+  receipts = await Receipt.getAllReceipts("Rejected");
+  Log(req, "Info: Rejected Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
 
 // list all Receipt submited by user and exchange and ready for admin response
 router.get("/list-pending-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
   var hasUser = true;
-  receipts = await SaleReceipt.getAllReceipts("Pending", hasUser);
-  Log(req, "Info: Receipts list returned", req.user.email);
+  receipts = await Receipt.getAllReceipts("Pending", hasUser);
+  Log(req, "Info: Pending Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
 
@@ -223,19 +224,19 @@ router.post("/approve-receipt", [passport.authenticate("jwt", { session: false }
   const receiptNumber = Number(req.body.receiptNumber);
   const comment = req.body.comment;
 
-  receipt = await SaleReceipt.getReceiptByNumber(receiptNumber);
-  //   if (receipt.status != "Pending") {
-  //     throw new Error("Admin can approve pending receipts only");
-  //   }
+  receipt = await Receipt.getReceiptByNumber(receiptNumber);
+  if (receipt.status != "Pending") {
+    throw new Error("Admin can approve pending receipts only");
+  }
   receipt.admin = req.user._id;
   receipt.adminEmail = req.user.email;
   receipt.adminComment = comment;
   receipt.adminSubmitDate = new Date();
   receipt.status = "Approved";
-  await receipt.save();
   price = await Price.getLastPrice(receipt.userSubmitDate);
   user = await User.getUserByIdAsync(receipt.user);
   user.balance += receipt.amount / price.price;
+  await receipt.save();
 
   await user.save();
 
@@ -248,7 +249,7 @@ router.post("/reject-receipt", [passport.authenticate("jwt", { session: false })
   const receiptNumber = Number(req.body.receiptNumber);
   const comment = req.body.comment;
 
-  receipt = await SaleReceipt.getReceiptByNumber(receiptNumber);
+  receipt = await Receipt.getReceiptByNumber(receiptNumber);
   if (receipt.status != "Pending") {
     throw new Error("Admin can reject pending receipts only");
   }
@@ -262,4 +263,77 @@ router.post("/reject-receipt", [passport.authenticate("jwt", { session: false })
   res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") rejected by admin" });
 });
 
+// list all BurnRequest submited
+router.get("/list-burn", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+  burnRequests = await BurnRequest.getAllBurnRequests();
+  Log(req, "Info: BurnRequests list returned", req.user.email);
+  res.json({ success: true, burnRequests: burnRequests });
+});
+
+// list all BurnRequest approved by admin
+router.get("/list-approved-burn", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+  burnRequests = await BurnRequest.getAllBurnRequests("Approved");
+  Log(req, "Info: Approved BurnRequests list returned", req.user.email);
+  res.json({ success: true, burnRequests: burnRequests });
+});
+
+// list all BurnRequest rejected by admin
+router.get("/list-rejected-burn", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+  burnRequests = await BurnRequest.getAllBurnRequests("Rejected");
+  Log(req, "Info: Rejected BurnRequests list returned", req.user.email);
+  res.json({ success: true, burnRequests: burnRequests });
+});
+
+// list all BurnRequest submited by user and ready for admin response
+router.get("/list-pending-burn", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+  burnRequests = await BurnRequest.getAllBurnRequests("Pending");
+  Log(req, "Info: Pending BurnRequests list returned", req.user.email);
+  res.json({ success: true, burnRequests: burnRequests });
+});
+
+// approve burn by admin
+router.post("/approve-burn", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+  const burnRequestNumber = Number(req.body.burnRequestNumber);
+
+  burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
+  if (burnRequest.status != "Pending") {
+    throw new Error("Admin can approve pending burnRequests only");
+  }
+  burnRequest.admin = req.user._id;
+  burnRequest.adminEmail = req.user.email;
+  burnRequest.adminComment = req.body.comment;
+  burnRequest.adminSubmitDate = new Date();
+  burnRequest.status = "Approved";
+  user = await User.getUserByIdAsync(receipt.user);
+  if (burnRequest.amount > burnRequest.balance) {
+    throw new Error("Requested amount greater than user's balance");
+  }
+  user.balance = user.balance - burnRequest.amount;
+  await user.save();
+
+  await burnRequest.save();
+
+  Log(req, "Info: BurnRequest Number (" + burnRequest.burnRequestNumber + ") Approved by admin", req.user.email);
+  res.json({ success: true, msg: "BurnRequest Number (" + burnRequest.burnRequestNumber + ") Approved by admin" });
+});
+
+// reject burn by admin
+router.post("/reject-burn", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
+  const burnRequestNumber = Number(req.body.burnRequestNumber);
+
+  burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
+  if (burnRequest.status != "Pending") {
+    throw new Error("Admin can reject pending burnRequests only");
+  }
+  burnRequest.admin = req.user._id;
+  burnRequest.adminEmail = req.user.email;
+  burnRequest.adminComment = req.body.comment;
+  burnRequest.adminSubmitDate = new Date();
+  burnRequest.status = "Rejected";
+
+  await burnRequest.save();
+
+  Log(req, "Info: BurnRequest Number (" + burnRequest.burnRequestNumber + ") Rejected by admin", req.user.email);
+  res.json({ success: true, msg: "BurnRequest Number (" + burnRequest.burnRequestNumber + ") Rejected by admin" });
+});
 module.exports = router;

@@ -6,7 +6,7 @@ const multer = require("multer");
 const path = require("path");
 
 const Log = require("../middlewares/log");
-const SaleReceipt = require("../models/sale-receipt");
+const Receipt = require("../models/receipt");
 const User = require("../models/user");
 const Email = require("../middlewares/email");
 const autorize = require("../middlewares/authorize");
@@ -27,7 +27,7 @@ router.post("/receipt", [passport.authenticate("jwt", { session: false }), uploa
   const userNumber = Number(req.body.userNumber);
 
   user = await User.getUserByNumber(userNumber);
-  let newReceipt = new SaleReceipt({
+  let newReceipt = new Receipt({
     exchanger: req.user._id,
     exchangerEmail: req.user.email,
     exchangerComment: req.body.comment,
@@ -58,7 +58,7 @@ router.post("/get-kyc", [passport.authenticate("jwt", { session: false }), autor
 router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
   const exchangerId = req.user._id;
 
-  receipts = await SaleReceipt.getExchangerReceipts(exchangerId);
+  receipts = await Receipt.getExchangerReceipts(exchangerId);
   Log(req, "Info: Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });

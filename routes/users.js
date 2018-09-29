@@ -14,7 +14,9 @@ const Email = require("../middlewares/email");
 const config = require("../config/setting");
 const rpcserver = require("../middlewares/rpcserver");
 const ForgottenPasswordToken = require("../models/forgotPassword");
-const SaleReceipt = require("../models/sale-receipt");
+const Receipt = require("../models/receipt");
+const BurnRequest = require("../models/burnRequest");
+const Price = require("../models/price");
 
 var storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -250,7 +252,7 @@ router.post("/receipt", passport.authenticate("jwt", { session: false }), upload
   const receiptNumber = Number(req.body.receiptNumber);
   const comment = req.body.comment;
 
-  receipt = await SaleReceipt.getReceiptByNumber(receiptNumber);
+  receipt = await Receipt.getReceiptByNumber(receiptNumber);
   if (String(receipt.user._id) != String(userId)) {
     throw new Error("User can not view others' receipt");
   } else {
@@ -269,7 +271,7 @@ router.post("/receipt", passport.authenticate("jwt", { session: false }), upload
 router.get("/list-receipt", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
   const userId = req.user._id;
 
-  receipts = await SaleReceipt.getUserReceipts(userId);
+  receipts = await Receipt.getUserReceipts(userId);
   Log(req, "Info: Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
@@ -278,7 +280,7 @@ router.get("/list-receipt", passport.authenticate("jwt", { session: false }), as
 router.get("/list-pending-receipt", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
   const userId = req.user._id;
 
-  receipts = await SaleReceipt.getUserReceipts(userId, "Pending");
+  receipts = await Receipt.getUserReceipts(userId, "Pending");
   Log(req, "Info: Pending Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
@@ -290,6 +292,46 @@ router.get("/balance", passport.authenticate("jwt", { session: false }), async (
   user = await User.getUserByEmail(email);
   Log(req, "Info: Balance returned", req.user.email);
   res.json({ success: true, balance: user.balance });
+});
+
+// request to burn some token and give mony
+router.post("/burn", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+  const amount = req.body.amount;
+  if (amount > req.user.balance) {
+    throw new Error("Requested amount greater than your balance");
+  }
+  const price = await Price.getLastPrice();
+  let newBurnReq = new BurnRequest({
+    user: req.user._id,
+    userEmail: req.user.email,
+    userComment: req.body.comment,
+    userSubmitDate: new Date(),
+    amount: amount,
+    tokenPrice: price,
+    status: "Pending"
+  });
+  burnRequest = await newBurnReq.save();
+  receipt = await newReceipt.save();
+  Log(req, "Info: BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Submited", req.user.email);
+  res.json({ success: true, msg: "BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Submited" });
+});
+
+// list all BurnRequests submited for user
+router.get("/list-burn", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+  const userId = req.user._id;
+
+  burnRequests = await BurnRequests.getUserBurnRequests(userId);
+  Log(req, "Info: BurnRequests list returned", req.user.email);
+  res.json({ success: true, burnRequests: burnRequests });
+});
+
+// list all Pending BurnRequests submited for user
+router.get("/list-pending-burn", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+  const userId = req.user._id;
+
+  burnRequests = await BurnRequests.getUserBurnRequests(userId, "Pending");
+  Log(req, "Info: Pending BurnRequests list returned", req.user.email);
+  res.json({ success: true, burnRequests: burnRequests });
 });
 
 module.exports = router;

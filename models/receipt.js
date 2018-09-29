@@ -1,9 +1,9 @@
 const mongoose = require("mongoose");
 var Schema = mongoose.Schema;
-const User = require("../models/user");
+const User = require("./user");
 
 // Price Schema
-const SaleReceiptSchema = mongoose.Schema({
+const ReceiptSchema = mongoose.Schema({
   amount: { type: Number, required: true },
   exchanger: { type: Schema.Types.ObjectId, ref: "User", required: true },
   exchangerEmail: { type: String, required: true },
@@ -26,18 +26,18 @@ const SaleReceiptSchema = mongoose.Schema({
   }
 });
 
-SaleReceiptSchema.plugin(autoIncrement.plugin, {
-  model: "SaleReceipt",
+ReceiptSchema.plugin(autoIncrement.plugin, {
+  model: "Receipt",
   field: "receiptNumber",
   startAt: 10000
 });
 
-const SaleReceipt = (module.exports = mongoose.model("SaleReceipt", SaleReceiptSchema));
+const Receipt = (module.exports = mongoose.model("Receipt", ReceiptSchema));
 
 module.exports.getReceiptByNumber = async function(receiptNumber) {
   const query = { receiptNumber: receiptNumber };
 
-  receipt = await SaleReceipt.findOne(query);
+  receipt = await Receipt.findOne(query);
   if (!receipt) {
     throw new Error("Receipt not found");
   }
@@ -47,7 +47,7 @@ module.exports.getReceiptByNumber = async function(receiptNumber) {
 module.exports.getExchangerReceipts = async function(exchanger) {
   const query = { exchanger: exchanger };
 
-  return await SaleReceipt.find(query);
+  return await Receipt.find(query);
 };
 
 module.exports.getUserReceipts = async function(userId, reqStatus) {
@@ -56,7 +56,7 @@ module.exports.getUserReceipts = async function(userId, reqStatus) {
     query["status"] = reqStatus;
   }
 
-  return await SaleReceipt.find(query);
+  return await Receipt.find(query);
 };
 
 module.exports.getAllReceipts = async function(reqStatus, hasUser) {
@@ -69,5 +69,5 @@ module.exports.getAllReceipts = async function(reqStatus, hasUser) {
     query["userSubmitDate"] = { $ne: null };
   }
 
-  return await SaleReceipt.find(query);
+  return await Receipt.find(query);
 };

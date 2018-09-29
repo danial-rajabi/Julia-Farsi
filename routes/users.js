@@ -41,7 +41,7 @@ router.post("/register", async (req, res, next) => {
     user = await User.addUser(newUser);
     var mailContent = "Hi<br>";
     mailContent +=
-      "Your account registered suuccesfuly. To verify that this email address belongs to you, verify your email address. You can do this here:<br>";
+      "Your account registered successfully. To verify that this email address belongs to you, verify your email address. You can do this here:<br>";
     mailContent +=
       '<a href="' +
       config.serverAddr +
@@ -308,12 +308,53 @@ router.post("/burn", passport.authenticate("jwt", { session: false }), async (re
     userSubmitDate: new Date(),
     amount: amount,
     tokenPrice: price,
+    verificationToken: randToken.generate(8),
+    verificationTokenExpire: new date() + 15 * 60 * 1000,
+    verified: false,
     status: "Pending"
   });
   burnRequest = await newBurnReq.save();
-  receipt = await newReceipt.save();
+  var mailContent = "Hi<br>";
+  mailContent += "Your burn requset registered successfully. To verify your request please enter the code blow on site:<br>";
+  mailContent += "Verification Token : " + burnRequest.verificationToken;
+  Email.sendMail(user.email, "Verify Burn Request", mailContent);
   Log(req, "Info: BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Submited", req.user.email);
   res.json({ success: true, msg: "BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Submited" });
+});
+
+// Verify Burn resend token
+router.get("/burn-resend-token", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+  const burnRequestNumber = Number(req.body.burnRequestNumber);
+
+  burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
+  burnRequest.verificationToken = randToken.generate(8);
+  burnRequest.verificationTokenExpire = new date() + 15 * 60 * 1000;
+  burnRequest.verified = false;
+  await burnRequest.save();
+  var mailContent = "Hi<br>";
+  mailContent += "Your burn requset registered successfully. To verify your request please enter the code blow on site:<br>";
+  mailContent += "Verification Token : " + burnRequest.verificationToken;
+  Email.sendMail(user.email, "Verify Burn Request", mailContent);
+  Log(req, "Info: Verification email for BurnRequest Number (" + burnRequest.BurnRequestNumber + ") resent", req.user.email);
+  res.json({ success: true, msg: "Verification email for BurnRequest Number (" + burnRequest.BurnRequestNumber + ") resent" });
+});
+
+// Verify Burn
+router.get("/burn-verify", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+  const verificationToken = req.query.verificationToken;
+
+  const burnRequestNumber = Number(req.body.burnRequestNumber);
+
+  burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
+  if (burnRequest.verificationToken != verificationToken) {
+    throw new Error("Wrong Verification Token");
+  } else if (burnRequest.verificationTokenExpire < Date.now()) {
+    throw new Error("Expired Verification Token");
+  }
+  burnRequest.verified = true;
+  await burnRequest.save();
+  Log(req, "Info: BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Verified", req.user.email);
+  res.json({ success: true, msg: "BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Verified" });
 });
 
 // list all BurnRequests submited for user

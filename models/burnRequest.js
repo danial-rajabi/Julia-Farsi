@@ -23,7 +23,7 @@ const BurnRequestSchema = mongoose.Schema({
   }
 });
 
-ReceiptSchema.plugin(autoIncrement.plugin, {
+BurnRequestSchema.plugin(autoIncrement.plugin, {
   model: "BurnRequest",
   field: "BurnRequestNumber",
   startAt: 10000

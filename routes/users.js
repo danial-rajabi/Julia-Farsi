@@ -10,7 +10,9 @@ const randToken = require("rand-token");
 
 const User = require("../models/user");
 const Log = require("../middlewares/log");
+const i18n = require("../middlewares/i18n");
 const Email = require("../middlewares/email");
+const DateUtils = require("../middlewares/date-utils");
 const config = require("../config/setting");
 const rpcserver = require("../middlewares/rpcserver");
 const ForgottenPasswordToken = require("../models/forgotPassword");
@@ -30,7 +32,7 @@ var storage = multer.diskStorage({
 var upload = multer({ storage: storage });
 
 //Register
-router.post("/register", async (req, res, next) => {
+router.post("/register", i18n, async (req, res, next) => {
   let newUser = new User({
     email: req.body.email,
     password: req.body.password,
@@ -39,17 +41,8 @@ router.post("/register", async (req, res, next) => {
   isValid = await User.checkReferal(newUser.referal);
   if (isValid) {
     user = await User.addUser(newUser);
-    var mailContent = "Hi<br>";
-    mailContent +=
-      "Your account registered successfully. To verify that this email address belongs to you, verify your email address. You can do this here:<br>";
-    mailContent +=
-      '<a href="' +
-      config.serverAddr +
-      "/users/verifyemail?email=" +
-      user.email +
-      "&verificationToken=" +
-      user.emailVerificationToken +
-      '">Verifiy Email Address</a>';
+    var mailContent = __("verifyEmailContent %s %s %s", config.serverAddr, user.email, user.emailVerificationToken);
+    console.log(mailContent);
     Email.sendMail(user.email, "Verification Email", mailContent);
     Log(req, "Info: User registered successfuly", user.email);
     return res.json({
@@ -297,6 +290,8 @@ router.get("/balance", passport.authenticate("jwt", { session: false }), async (
 // request to burn some token and give mony
 router.post("/burn", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
   const amount = req.body.amount;
+  console.log(amount);
+
   if (amount > req.user.balance) {
     throw new Error("Requested amount greater than your balance");
   }
@@ -307,9 +302,9 @@ router.post("/burn", passport.authenticate("jwt", { session: false }), async (re
     userComment: req.body.comment,
     userSubmitDate: new Date(),
     amount: amount,
-    tokenPrice: price,
+    tokenPrice: price.price,
     verificationToken: randToken.generate(8),
-    verificationTokenExpire: new date() + 15 * 60 * 1000,
+    verificationTokenExpire: await DateUtils.addminutes(new Date(), 15),
     verified: false,
     status: "Pending"
   });
@@ -317,31 +312,31 @@ router.post("/burn", passport.authenticate("jwt", { session: false }), async (re
   var mailContent = "Hi<br>";
   mailContent += "Your burn requset registered successfully. To verify your request please enter the code blow on site:<br>";
   mailContent += "Verification Token : " + burnRequest.verificationToken;
-  Email.sendMail(user.email, "Verify Burn Request", mailContent);
+  Email.sendMail(req.user.email, "Verify Burn Request", mailContent);
   Log(req, "Info: BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Submited", req.user.email);
   res.json({ success: true, msg: "BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Submited" });
 });
 
 // Verify Burn resend token
-router.get("/burn-resend-token", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+router.post("/burn-resend-token", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
   const burnRequestNumber = Number(req.body.burnRequestNumber);
 
   burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
   burnRequest.verificationToken = randToken.generate(8);
-  burnRequest.verificationTokenExpire = new date() + 15 * 60 * 1000;
+  burnRequest.verificationTokenExpire = await DateUtils.addminutes(new Date(), 15);
   burnRequest.verified = false;
   await burnRequest.save();
   var mailContent = "Hi<br>";
   mailContent += "Your burn requset registered successfully. To verify your request please enter the code blow on site:<br>";
   mailContent += "Verification Token : " + burnRequest.verificationToken;
-  Email.sendMail(user.email, "Verify Burn Request", mailContent);
+  Email.sendMail(req.user.email, "Verify Burn Request", mailContent);
   Log(req, "Info: Verification email for BurnRequest Number (" + burnRequest.BurnRequestNumber + ") resent", req.user.email);
   res.json({ success: true, msg: "Verification email for BurnRequest Number (" + burnRequest.BurnRequestNumber + ") resent" });
 });
 
 // Verify Burn
-router.get("/burn-verify", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
-  const verificationToken = req.query.verificationToken;
+router.post("/burn-verify", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+  const verificationToken = req.body.verificationToken;
 
   const burnRequestNumber = Number(req.body.burnRequestNumber);
 
@@ -363,14 +358,14 @@ router.get("/list-burn", passport.authenticate("jwt", { session: false }), async
 
   burnRequests = await BurnRequests.getUserBurnRequests(userId);
   Log(req, "Info: BurnRequests list returned", req.user.email);
-  res.json({ success: true, burnRequests: burnRequests });
+  res.json({ success: true, burnRequest: burnRequests });
 });
 
 // list all Pending BurnRequests submited for user
 router.get("/list-pending-burn", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
   const userId = req.user._id;
 
-  burnRequests = await BurnRequests.getUserBurnRequests(userId, "Pending");
+  burnRequests = await BurnRequest.getUserBurnRequests(userId, "Pending");
   Log(req, "Info: Pending BurnRequests list returned", req.user.email);
   res.json({ success: true, burnRequests: burnRequests });
 });

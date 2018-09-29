@@ -1,0 +1,4 @@
+{
+  "verifyEmailContent %s %s %s": "سلام <br> حساب کاربری شما با موفقیت ایجاد شد. برای تایید ایمیل خود بر روی لینک زیر کلیک نمایید:<br><a href=\"%s/users/verifyemail?email=%s&verificationToken=%s\">تایید آدرس ایمیل</a>",
+  "Verify Email Address": "تایید آدرس ایمیل"
+}

@@ -10,6 +10,7 @@ require("express-async-errors");
 const config = require("./config/setting");
 const configAdmin = require("./config/admin");
 const errors = require("./middlewares/errors");
+i18n = require("i18n");
 
 mongoose.connect(
   config.database,
@@ -26,6 +27,14 @@ mongoose.connection.on("connected", () => {
 mongoose.connection.on("error", console.error.bind(console, "connection error:"));
 
 const app = express();
+i18n.configure({
+  locales: ["en", "fa"],
+  defaultLocale: "fa",
+  register: global,
+  directory: __dirname + "/locales"
+});
+
+// console.log(__("Hello %s", "Marcus"));
 
 const users = require("./routes/users");
 const admins = require("./routes/admins");

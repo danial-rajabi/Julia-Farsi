@@ -25,7 +25,8 @@ const UserSchema = mongoose.Schema({
   referal: { type: String },
   contractType: { type: String, enum: ["Risky", "Normal"] },
   roles: [{ roleTitle: String }],
-  balance: { type: Number, default: 0 }
+  balance: { type: Number, default: 0 },
+  locale: { type: String, enum: ["fa", "en"], default: "fa" }
 });
 
 UserSchema.plugin(autoIncrement.plugin, {

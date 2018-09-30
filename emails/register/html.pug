@@ -1,0 +1,7 @@
+- var link = `${server}/users/verifyemail?email=${email}&verificationToken=${emailVerificationToken}`
+div(style={direction: 'rtl', 'font-family': 'monospace'})
+     p سلام،
+     p حساب کاربری شما با موفقیت ایجاد شد. برای تایید ایمیل خود بر روی لینک زیر کلیک نمایید
+          br
+          a(href=link) تایید آدرس ایمیل
+     include ../signature.pug 

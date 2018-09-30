@@ -11,6 +11,7 @@ const config = require("./config/setting");
 const configAdmin = require("./config/admin");
 const errors = require("./middlewares/errors");
 i18n = require("i18n");
+const Email = require("./middlewares/email");
 
 mongoose.connect(
   config.database,
@@ -74,7 +75,10 @@ let administrator = new User({
   firstName: configAdmin.firstName,
   lastName: configAdmin.lastName
 });
-
+// var locals = { ticketNumber: 123, subject: "تست", answerDesc: "باید ابتدا آدرس خود را به درستی وارد نمایید" };
+// Email.sendMail("h.niloofar@gmail.com", "ticketAnswer", locals);
+// var locals = { ticketNumber: ticket.ticketNumber, subject: ticket.subject, answerDesc: answerDesc };
+// Email.sendMail(ticket.userEmail, "ticketAutoClose", locals);
 User.addAdministrator(administrator);
 
 const Price = require("./models/price");

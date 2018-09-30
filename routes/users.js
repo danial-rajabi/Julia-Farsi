@@ -41,8 +41,8 @@ router.post("/register", i18n, async (req, res, next) => {
   isValid = await User.checkReferal(newUser.referal);
   if (isValid) {
     user = await User.addUser(newUser);
-    var mailContent = __("verifyEmailContent %s %s %s", config.serverAddr, user.email, user.emailVerificationToken);
-    Email.sendMail(user.email, __("Verify Email Address"), mailContent);
+    var locals = { server: config.serverAddr, email: user.email, emailVerificationToken: user.emailVerificationToken };
+    Email.sendMail(user.email, "register", locals);
     Log(req, "Info: User registered successfuly", user.email);
     return res.json({
       success: true,
@@ -52,13 +52,16 @@ router.post("/register", i18n, async (req, res, next) => {
 });
 
 //Authenticate
-router.post("/authenticate", async (req, res, next) => {
+router.post("/authenticate", i18n, async (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
 
   user = await User.getUserByEmail(email);
   if (!user.emailVerified) {
-    throw new Error("Email not verified");
+    throw new Error("Email not verified, go to your mailbox and click on verification link");
+  }
+  if (!user.enabled) {
+    throw new Error("Your Account dissabled by admin, please contact to admin");
   }
 
   isMatch = await User.comparePassword(password, user.password);
@@ -95,58 +98,48 @@ router.get("/verifyemail", i18n, async (req, res, next) => {
 });
 
 // Forgot Password
-router.post("/forgotpassword", async (req, res, next) => {
+router.post("/forgotpassword", i18n, async (req, res, next) => {
   let passwordToken = new ForgottenPasswordToken({
     email: req.body.email
   });
   user = await User.getUserByEmail(passwordToken.email);
   passwordToken = await ForgottenPasswordToken.forgotPassword(passwordToken);
-  var mailContent =
-    '<a href="' +
-    config.serverAddr +
-    "users/resetpassword?email=" +
-    passwordToken.email +
-    "&resetpasswordtoken=" +
-    passwordToken.token +
-    '"Reset Password Link</a>';
-  Email.sendMail(user.email, "Reset Password", mailContent);
-  return res.json({ success: true, msg: "Reset Password Email sent" });
+  var locals = { server: config.serverAddr, email: user.email, passwordToken: passwordToken.token };
+  Email.sendMail(user.email, "resetPassword", locals);
+  return res.json({ success: true, msg: __("Reset Password Email sent to your mailbox") });
 });
 
 // Reset Password
-router.post("/resetpassword", async (req, res, next) => {
+router.post("/resetpassword", i18n, async (req, res, next) => {
   const resetPassToken = req.body.resetpasswordtoken;
   const email = req.body.email;
   const password = req.body.password;
 
   token = await ForgottenPasswordToken.getTokenByToken(resetPassToken);
   if (!token || token.email != email) {
-    throw new Error("Invalid Token");
+    throw new Error("Invalid Token entered");
   } else {
     token.remove();
     if (token.expiration < Date.now()) {
-      throw new Error("Expired Token");
+      throw new Error("Expired Token, request reset password again");
     } else {
       user = await User.getUserByEmail(email);
       user = await User.changePassword(user, password);
       Log(req, "Info: Password reset successfuly", user.email);
       return res.json({
         success: true,
-        msg: "Password reset successfuly"
+        msg: __("Password changed successfuly")
       });
     }
   }
 });
 
 // Change Password
-router.post("/changepassword", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+router.post("/changepassword", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
   const email = req.user.email;
   const oldPassword = req.body.oldPassword;
   const newPassword = req.body.newPassword;
   user = await User.getUserByEmail(email);
-  if (!user.emailVerified) {
-    throw new Error("Email not verified");
-  }
 
   isMatch = await User.comparePassword(oldPassword, user.password);
   if (isMatch) {
@@ -154,7 +147,7 @@ router.post("/changepassword", passport.authenticate("jwt", { session: false }),
     Log(req, "Info: Password changed successfuly", user.email);
     return res.json({
       success: true,
-      msg: "Password changed successfuly"
+      msg: __("Password changed successfuly")
     });
   } else {
     throw new Error("Wrong Old Password");
@@ -162,8 +155,9 @@ router.post("/changepassword", passport.authenticate("jwt", { session: false }),
 });
 
 // Update KYC
-router.post("/updatekyc", passport.authenticate("jwt", { session: false }), upload.single("passportImage"), async (req, res, next) => {
+router.post("/updatekyc", [passport.authenticate("jwt", { session: false }), i18n, upload.single("passportImage")], async (req, res, next) => {
   const email = req.user.email;
+
   user = await User.getUserByEmail(email);
   user.firstName = req.body.firstName;
   user.lastName = req.body.lastName;
@@ -185,7 +179,7 @@ router.post("/updatekyc", passport.authenticate("jwt", { session: false }), uplo
   user.KYCUpdated = true;
   user.KYCVerified = false;
   try {
-    return await user.save();
+    await user.save();
   } catch (ex) {
     if (ex.code == 11000) {
       throw new Error("Wallet address used by another user");
@@ -193,20 +187,18 @@ router.post("/updatekyc", passport.authenticate("jwt", { session: false }), uplo
       throw ex;
     }
   }
-
   Log(req, "Info: User KYC Updated", user.email);
-  return res.json({ success: true, msg: "User KYC Updated" });
+  return res.json({ success: true, msg: __("Your KYC Updated, please wait to admin verify them") });
 });
 
 // Sign Contract
-router.post("/sign-contract", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+router.post("/sign-contract", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
   const email = req.user.email;
   const contractType = req.body.contractType;
   user = await User.getUserByEmail(email);
 
   if (!user.KYCVerified) {
-    Log(req, "Error: KYC not verified yet", email);
-    return res.json({ success: false, msg: "KYC not verified, please update your KYC and wait to verify by admin" });
+    throw new Error("KYC not verified, please update your KYC and wait to admin verify them");
   } else {
     user.contractType = contractType;
     user.SignedContract = true;
@@ -219,7 +211,7 @@ router.post("/sign-contract", passport.authenticate("jwt", { session: false }), 
       Log(req, "Info: Wallet(" + user.walletAddress + ") added to whitelist, txID: " + rpcResponse.msg, "SYSTEM");
       await user.save();
       Log(req, "Info: Contract (" + contractType + ") signed by user", req.user.email);
-      return res.json({ success: true, msg: "Contract Signed successfuly" });
+      return res.json({ success: true, msg: __("Contract Signed successfuly") });
     } else {
       throw new Error(rpcResponse.msg);
     }
@@ -227,7 +219,7 @@ router.post("/sign-contract", passport.authenticate("jwt", { session: false }), 
 });
 
 // Get Referals
-router.get("/getreferal", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+router.get("/getreferal", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
   const userId = req.user._id;
   referals = await User.getUserReferals(userId);
   var ReferedUsers = [];
@@ -239,14 +231,14 @@ router.get("/getreferal", passport.authenticate("jwt", { session: false }), asyn
 });
 
 // Upload Sale Receipt by exchanger
-router.post("/receipt", passport.authenticate("jwt", { session: false }), upload.single("receipt"), async (req, res, next) => {
+router.post("/receipt", [passport.authenticate("jwt", { session: false }), i18n, upload.single("receipt")], async (req, res, next) => {
   const userId = req.user._id;
   const receiptNumber = Number(req.body.receiptNumber);
   const comment = req.body.comment;
 
   receipt = await Receipt.getReceiptByNumber(receiptNumber);
   if (String(receipt.user._id) != String(userId)) {
-    throw new Error("User can not view others' receipt");
+    throw new Error("You can not view others' receipt");
   } else {
     receipt.userComment = comment;
     receipt.userSubmitDate = new Date();
@@ -256,11 +248,11 @@ router.post("/receipt", passport.authenticate("jwt", { session: false }), upload
   }
   receipt = await receipt.save();
   Log(req, "Info: Receipt Number (" + receipt.receiptNumber + ") Updated by user", req.user.email);
-  res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") Updated by user" });
+  res.json({ success: true, msg: __("Receipt Number %i updated successfuly", receipt.receiptNumber) });
 });
 
 // list all Receipt submited for user
-router.get("/list-receipt", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
   const userId = req.user._id;
 
   receipts = await Receipt.getUserReceipts(userId);
@@ -269,7 +261,7 @@ router.get("/list-receipt", passport.authenticate("jwt", { session: false }), as
 });
 
 // list all Pending Receipt submited for user
-router.get("/list-pending-receipt", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+router.get("/list-pending-receipt", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
   const userId = req.user._id;
 
   receipts = await Receipt.getUserReceipts(userId, "Pending");
@@ -278,7 +270,7 @@ router.get("/list-pending-receipt", passport.authenticate("jwt", { session: fals
 });
 
 // return user balance
-router.get("/balance", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+router.get("/balance", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
   const email = req.user.email;
 
   user = await User.getUserByEmail(email);
@@ -287,7 +279,7 @@ router.get("/balance", passport.authenticate("jwt", { session: false }), async (
 });
 
 // request to burn some token and give mony
-router.post("/burn", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+router.post("/burn", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
   const amount = req.body.amount;
 
   if (amount > req.user.balance) {
@@ -307,21 +299,19 @@ router.post("/burn", passport.authenticate("jwt", { session: false }), async (re
     status: "Pending"
   });
   burnRequest = await newBurnReq.save();
-  var mailContent = "Hi<br>";
-  mailContent += "Your burn requset registered successfully. To verify your request please enter the code blow on site:<br>";
-  mailContent += "Verification Token : " + burnRequest.verificationToken;
-  Email.sendMail(req.user.email, "Verify Burn Request", mailContent);
+  var locals = { amount: burnRequest.amount, verificationToken: burnRequest.verificationToken };
+  Email.sendMail(req.user.email, "verifyBurnRequest", locals);
   Log(req, "Info: BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Submited", req.user.email);
   res.json({ success: true, msg: __("BurnRequest Number %i Submited", burnRequest.BurnRequestNumber) });
 });
 
 // request to burn some token and give mony
-router.post("/burn-cancel", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+router.post("/burn-cancel", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
   const userId = req.user._id;
   const burnRequestNumber = Number(req.body.burnRequestNumber);
   burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
   if (String(burnRequest.user._id) != String(userId)) {
-    throw new Error("User can not cancel others' burnRequest");
+    throw new Error("You can not cancel others' burnRequest");
   }
   burnRequest.status = "Canceled";
   await burnRequest.save();
@@ -330,7 +320,7 @@ router.post("/burn-cancel", passport.authenticate("jwt", { session: false }), as
 });
 
 // Verify Burn resend token
-router.post("/burn-resend-token", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+router.post("/burn-resend-token", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
   const burnRequestNumber = Number(req.body.burnRequestNumber);
 
   burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
@@ -338,25 +328,23 @@ router.post("/burn-resend-token", passport.authenticate("jwt", { session: false 
   burnRequest.verificationTokenExpire = await DateUtils.addminutes(new Date(), 15);
   burnRequest.verified = false;
   await burnRequest.save();
-  var mailContent = "Hi<br>";
-  mailContent += "Your burn requset registered successfully. To verify your request please enter the code blow on site:<br>";
-  mailContent += "Verification Token : " + burnRequest.verificationToken;
-  Email.sendMail(req.user.email, "Verify Burn Request", mailContent);
+  var locals = { amount: burnRequest.amount, verificationToken: burnRequest.verificationToken };
+  Email.sendMail(req.user.email, "verifyBurnRequest", locals);
   Log(req, "Info: Verification email for BurnRequest Number (" + burnRequest.BurnRequestNumber + ") resent", req.user.email);
   res.json({ success: true, msg: ــ("Verification email for BurnRequest Number %i resent", burnRequest.BurnRequestNumber) });
 });
 
 // Verify Burn
-router.post("/burn-verify", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+router.post("/burn-verify", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
   const verificationToken = req.body.verificationToken;
 
   const burnRequestNumber = Number(req.body.burnRequestNumber);
 
   burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
   if (burnRequest.verificationToken != verificationToken) {
-    throw new Error("Wrong Verification Token");
+    throw new Error("Entered code is incorrect");
   } else if (burnRequest.verificationTokenExpire < Date.now()) {
-    throw new Error("Expired Verification Token");
+    throw new Error("Entered code is expired, please request again to send new code");
   }
   burnRequest.verified = true;
   await burnRequest.save();
@@ -365,7 +353,7 @@ router.post("/burn-verify", passport.authenticate("jwt", { session: false }), as
 });
 
 // list all BurnRequests submited for user
-router.get("/list-burn", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+router.get("/list-burn", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
   const userId = req.user._id;
 
   burnRequests = await BurnRequests.getUserBurnRequests(userId);
@@ -374,7 +362,7 @@ router.get("/list-burn", passport.authenticate("jwt", { session: false }), async
 });
 
 // list all Pending BurnRequests submited for user
-router.get("/list-pending-burn", passport.authenticate("jwt", { session: false }), async (req, res, next) => {
+router.get("/list-pending-burn", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
   const userId = req.user._id;
 
   burnRequests = await BurnRequest.getUserBurnRequests(userId, "Pending");

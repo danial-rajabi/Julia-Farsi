@@ -125,7 +125,7 @@ module.exports.addUser = async function(newUser) {
     return await newUser.save();
   } catch (ex) {
     if (ex.code == 11000) {
-      throw new Error(newUser.email + " registered before");
+      throw new Error("Email registered before");
     } else {
       throw ex;
     }

@@ -21,7 +21,7 @@ var storage = multer.diskStorage({
   }
 });
 var upload = multer({ storage: storage });
-
+//TODO i18n
 // Create new ticket
 router.post("/create", passport.authenticate("jwt", { session: false }), upload.single("attachment"), async (req, res, next) => {
   const userEmail = req.user.email;
@@ -108,11 +108,8 @@ router.post("/answer", [passport.authenticate("jwt", { session: false }), autori
   await ticket.save();
   // if ticket.reciveEmail == true then send email to user and notify about answer ticket
   if (ticket.recieveEmail) {
-    var mailContent = "Hi <br>";
-    mailContent += "Ticket number(" + ticket.ticketNumber + ") with subject " + ticket.subject;
-    mailContent += " answered by admin.<br>";
-    mailContent += "Admin's answer is: '" + answerDesc + "'";
-    Email.sendMail(ticket.userEmail, "Your ticket answered", mailContent);
+    var locals = { ticketNumber: ticket.ticketNumber, subject: ticket.subject, answerDesc: answerDesc };
+    Email.sendMail(ticket.userEmail, "ticketAnswer", locals);
   }
   Log(req, "Info: Ticket Number(" + ticketNumber + ") Answered Successfuly", req.user.email);
   res.json({ success: true, msg: "Ticket Number(" + ticketNumber + ") Answered Successfuly" });

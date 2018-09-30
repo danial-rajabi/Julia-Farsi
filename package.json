@@ -13,6 +13,7 @@
     "chart.js": "^2.7.2",
     "cors": "*",
     "dateformat": "*",
+    "email-templates": "^5.0.0",
     "express": "*",
     "express-async-errors": "^3.0.0",
     "fs": "0.0.2",
@@ -24,6 +25,7 @@
     "nodemailer": "*",
     "passport": "*",
     "passport-jwt": "*",
+    "pug": "^2.0.3",
     "rand-token": "*",
     "request": "^2.88.0",
     "request-promise": "^4.2.2"

@@ -64,10 +64,8 @@ async function closeOldAnsweredTickets() {
   tickets = await Ticket.find(query);
   tickets.forEach(async ticket => {
     if (ticket.recieveEmail) {
-      var mailContent = "Hi <br>";
-      mailContent += "Ticket number(" + ticket.ticketNumber + ") with subject " + ticket.subject;
-      mailContent += " closed authomatically because admin answered one weeks ago and you don't replay it.";
-      Email.sendMail(ticket.userEmail, "Your ticket closed by system", mailContent);
+      var locals = { ticketNumber: ticket.ticketNumber, subject: ticket.subject };
+      Email.sendMail(ticket.userEmail, "ticketAutoClose", locals);
     }
     ticket.status = "Closed";
     await icket.save();

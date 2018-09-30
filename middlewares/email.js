@@ -1,8 +1,9 @@
 var nodemailer = require("nodemailer");
 var emailConfig = require("../config/email");
 const Log = require("../middlewares/log");
+const Email = require("email-templates");
 
-module.exports.sendMail = async function(emailTo, emailSubject, emailContent) {
+module.exports.sendMail = async function(emailTo, template, locals) {
   var transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -10,15 +11,22 @@ module.exports.sendMail = async function(emailTo, emailSubject, emailContent) {
       pass: emailConfig.emailPassword
     }
   });
-  var mailContent = emailContent;
-  var mailOptions = {
-    from: emailConfig.emailUsername,
-    to: emailTo,
-    subject: emailSubject,
-    html: mailContent
-  };
-  info = await transporter.sendMail(mailOptions);
+
+  const email = new Email({
+    message: {
+      from: emailConfig.emailUsername
+    },
+    // send: true,
+    // preview: false,
+    transport: transporter
+  });
+  info = await email.send({
+    template: template,
+    message: { to: emailTo },
+    locals: locals
+  });
   Log(null, "Info: Email sent to " + emailTo, "SYSTEM");
+  console.log(info);
 
   return info;
 };

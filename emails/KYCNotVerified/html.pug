@@ -1,0 +1,19 @@
+div(style={direction: 'rtl', 'font-family': 'monospace'})
+     p سلام،
+     p  اطلاعات هویتی شما (KYC) توسط مدیر سیستم مورد تایید قرار نگرفت و مشکلات زیر در آن گزارش شده‌است:
+     ul
+          if !verifyFirstName
+               li مشکل در نام
+          if !verifyLastName
+               li مشکل در نام خانوادگی
+          if !verifyBirthDate
+               li مشکل در تاریخ تولد
+          if !verifyWallet
+               li  مشکل در آدرس wallet
+          if !verifyAddress
+               li مشکل در آدرس
+          if !verifyPassportImage
+               li مشکل در تصویر پاسپورت
+          if !verifyTelephone
+               li مشکل در شماره تلفن
+     include ../signature.pug 

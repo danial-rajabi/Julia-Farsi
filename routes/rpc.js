@@ -5,7 +5,7 @@ const passport = require("passport");
 const Log = require("../middlewares/log");
 const Price = require("../models/price");
 const autorize = require("../middlewares/authorize");
-
+//TODO i18n
 router.post("/token-price", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
   price = req.body.price;
   let newPrice = new Price({

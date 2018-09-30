@@ -21,7 +21,7 @@ var storage = multer.diskStorage({
   }
 });
 var upload = multer({ storage: storage });
-
+//TODO i18n
 // Upload Sale Receipt by exchanger
 router.post("/receipt", [passport.authenticate("jwt", { session: false }), upload.single("receipt"), autorize], async (req, res, next) => {
   const userNumber = Number(req.body.userNumber);

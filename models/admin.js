@@ -97,7 +97,7 @@ module.exports.addAdministrator = async function() {
 
 module.exports.hasRole = async function(admin, requestedRole) {
   var isFound = false;
-  if (admin.superAdmin) {
+  if (admin.superAdmin || !requestedRole) {
     return true;
   } else {
     roles = admin.roles;
@@ -113,4 +113,9 @@ module.exports.hasRole = async function(admin, requestedRole) {
 module.exports.getAdminsList = async function() {
   const query = {};
   return await Admin.find(query);
+};
+
+module.exports.getRoles = async function(email) {
+  const query = { email: email };
+  return await Admin.find(query, { roles: 1, _id: 0 });
 };

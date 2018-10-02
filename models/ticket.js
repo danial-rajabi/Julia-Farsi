@@ -65,7 +65,7 @@ async function closeOldAnsweredTickets() {
   tickets.forEach(async ticket => {
     if (ticket.recieveEmail) {
       var locals = { ticketNumber: ticket.ticketNumber, subject: ticket.subject };
-      Email.sendMail(ticket.userEmail, "ticketAutoClose", locals);
+      await Email.sendMail(ticket.userEmail, "ticketAutoClose", locals);
     }
     ticket.status = "Closed";
     await icket.save();

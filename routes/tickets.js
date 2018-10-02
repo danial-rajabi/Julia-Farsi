@@ -109,7 +109,7 @@ router.post("/answer", [passport.authenticate("jwt", { session: false }), autori
   // if ticket.reciveEmail == true then send email to user and notify about answer ticket
   if (ticket.recieveEmail) {
     var locals = { ticketNumber: ticket.ticketNumber, subject: ticket.subject, answerDesc: answerDesc };
-    Email.sendMail(ticket.userEmail, "ticketAnswer", locals);
+    await Email.sendMail(ticket.userEmail, "ticketAnswer", locals);
   }
   Log(req, "Info: Ticket Number(" + ticketNumber + ") Answered Successfuly", req.user.email);
   res.json({ success: true, msg: "Ticket Number(" + ticketNumber + ") Answered Successfuly" });

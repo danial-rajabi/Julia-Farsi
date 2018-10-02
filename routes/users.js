@@ -39,7 +39,7 @@ router.post("/register", i18n, async (req, res, next) => {
   const referal = req.body.referal;
   account = await User.addUser(email, password, referal);
   var locals = { server: config.serverAddr, email: account.email, emailVerificationToken: account.emailVerificationToken };
-  Email.sendMail(account.email, "register", locals);
+  await Email.sendMail(account.email, "register", locals);
   Log(req, "Info: User registered successfuly", account.email);
   return res.json({
     success: true,
@@ -184,7 +184,7 @@ router.post("/burn", [passport.authenticate("jwt", { session: false }), i18n], a
   });
   burnRequest = await newBurnReq.save();
   var locals = { amount: burnRequest.amount, verificationToken: burnRequest.verificationToken };
-  Email.sendMail(req.user.email, "verifyBurnRequest", locals);
+  await Email.sendMail(req.user.email, "verifyBurnRequest", locals);
   Log(req, "Info: BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Submited", req.user.email);
   res.json({ success: true, msg: __("BurnRequest Number %i Submited", burnRequest.BurnRequestNumber) });
 });
@@ -213,7 +213,7 @@ router.post("/burn-resend-token", [passport.authenticate("jwt", { session: false
   burnRequest.verified = false;
   await burnRequest.save();
   var locals = { amount: burnRequest.amount, verificationToken: burnRequest.verificationToken };
-  Email.sendMail(req.user.email, "verifyBurnRequest", locals);
+  await Email.sendMail(req.user.email, "verifyBurnRequest", locals);
   Log(req, "Info: Verification email for BurnRequest Number (" + burnRequest.BurnRequestNumber + ") resent", req.user.email);
   res.json({ success: true, msg: ــ("Verification email for BurnRequest Number %i resent", burnRequest.BurnRequestNumber) });
 });

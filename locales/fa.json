@@ -48,5 +48,9 @@
 	"Admin registered successfuly": "کاربر مدیر با موفقیت ایجاد شد",
 	"/home/hojjat/Projects/Julia-Farsi/emails/header.pug:1:1\n  > 1| @font-face\n-------^\n    2| {\n    3|  font-family:'Yekan';\n    4| src: url('http://88.198.19.87/assets/fonts/Yekan.ttf') format('truetype');  /* Saf3—5, Chrome4+, FF3.5, Opera 10+ */\n\nunexpected text \"@font\"": "/home/hojjat/Projects/Julia-Farsi/emails/header.pug:1:1\n  > 1| @font-face\n-------^\n    2| {\n    3|  font-family:'Yekan';\n    4| src: url('http://88.198.19.87/assets/fonts/Yekan.ttf') format('truetype');  /* Saf3—5, Chrome4+, FF3.5, Opera 10+ */\n\nunexpected text \"@font\"",
 	"account is not defined": "account is not defined",
-	"/home/hojjat/Projects/Julia-Farsi/emails/header.pug:1:1\n  > 1| @font-face {\n-------^\n    2|      font-family:'Yekan';\n    3|      src: url('http://88.198.19.87/assets/fonts/Yekan.ttf') format('truetype');  /* Saf3—5, Chrome4+, FF3.5, Opera 10+ */\n    4| }\n\nunexpected text \"@font\"": "/home/hojjat/Projects/Julia-Farsi/emails/header.pug:1:1\n  > 1| @font-face {\n-------^\n    2|      font-family:'Yekan';\n    3|      src: url('http://88.198.19.87/assets/fonts/Yekan.ttf') format('truetype');  /* Saf3—5, Chrome4+, FF3.5, Opera 10+ */\n    4| }\n\nunexpected text \"@font\""
+	"/home/hojjat/Projects/Julia-Farsi/emails/header.pug:1:1\n  > 1| @font-face {\n-------^\n    2|      font-family:'Yekan';\n    3|      src: url('http://88.198.19.87/assets/fonts/Yekan.ttf') format('truetype');  /* Saf3—5, Chrome4+, FF3.5, Opera 10+ */\n    4| }\n\nunexpected text \"@font\"": "/home/hojjat/Projects/Julia-Farsi/emails/header.pug:1:1\n  > 1| @font-face {\n-------^\n    2|      font-family:'Yekan';\n    3|      src: url('http://88.198.19.87/assets/fonts/Yekan.ttf') format('truetype');  /* Saf3—5, Chrome4+, FF3.5, Opera 10+ */\n    4| }\n\nunexpected text \"@font\"",
+	"Cannot read property 'includes' of null": "Cannot read property 'includes' of null",
+	"Illegal arguments: string, undefined": "Illegal arguments: string, undefined",
+	"Invalid salt version: ": "Invalid salt version: ",
+	"hash.lenght is not a function": "hash.lenght is not a function"
 }

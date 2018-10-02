@@ -65,7 +65,7 @@ router.post("/forgotpassword", i18n, async (req, res, next) => {
   account = await Account.getAccountByEmail(passwordToken.email);
   passwordToken = await ForgottenPasswordToken.forgotPassword(passwordToken);
   var locals = { server: config.serverAddr, email: account.email, passwordToken: passwordToken.token };
-  Email.sendMail(account.email, "resetPassword", locals);
+  await Email.sendMail(account.email, "resetPassword", locals);
   return res.json({ success: true, msg: __("Reset Password Email sent to your mailbox") });
 });
 

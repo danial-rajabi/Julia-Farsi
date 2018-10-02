@@ -59,10 +59,9 @@ module.exports = async function(req, res, next) {
       role = ["RPCManager"];
       break;
     default:
-      role = [""];
+      role = null;
   }
   hasRole = await Admin.hasRole(admin, role);
-  // console.log(hasRole);
 
   if (!hasRole) {
     Log(req, "Error: Unauthorized action", req.user.email);

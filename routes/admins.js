@@ -53,7 +53,7 @@ router.post(
     passwordToken = await ForgottenPasswordToken.forgotPassword(passwordToken);
 
     var locals = { server: config.serverAddr, email: account.email, passwordToken: passwordToken.token };
-    Email.sendMail(account.email, "register-other", locals);
+    await Email.sendMail(account.email, "register-other", locals);
     Log(req, "Info: Exchanger registered successfuly", account.email);
     return res.json({
       success: true,
@@ -88,6 +88,15 @@ router.post("/register-admin", [passport.authenticate("jwt", { session: false })
     msg: __("Admin registered successfuly")
   });
 });
+
+// list admin's own roles
+router.get("/roles", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  const email = req.user.email;
+  roles = await Admin.getRoles(email);
+  Log(req, "Info: Roles returned", req.user.email);
+  res.json({ success: true, roles: roles });
+});
+
 // Verify KYC
 router.post("/verifykyc", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const verifyFirstName = req.body.verifyFirstName;
@@ -105,7 +114,7 @@ router.post("/verifykyc", [passport.authenticate("jwt", { session: false }), i18
     verifyWallet = true;
   }
   if (verifyFirstName && verifyLastName && verifyBirthDate && verifyWallet && verifyAddress && verifyPassportImage && verifyTelephone) {
-    Email.sendMail(user.email, "KYCVerified", req.body);
+    await Email.sendMail(user.email, "KYCVerified", req.body);
 
     user.KYCUpdated = false;
     user.KYCVerified = true;
@@ -115,7 +124,7 @@ router.post("/verifykyc", [passport.authenticate("jwt", { session: false }), i18
     Log(req, "Info: User(" + user.email + ") KYC verified", req.user.email);
     return res.json({ success: true, msg: "User KYC verified" });
   } else {
-    Email.sendMail(user.email, "KYCNotVerified", req.body);
+    await Email.sendMail(user.email, "KYCNotVerified", req.body);
 
     user.KYCVerified = false;
     user.KYCUpdated = false;

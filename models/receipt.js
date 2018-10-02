@@ -5,6 +5,8 @@ const User = require("./user");
 // Price Schema
 const ReceiptSchema = mongoose.Schema({
   amount: { type: Number, required: true },
+  verificationCode: { type: String, required: true },
+  codeExpiration: { type: Date, required: true },
   exchanger: { type: Schema.Types.ObjectId, ref: "User", required: true },
   exchangerEmail: { type: String, required: true },
   exchangerComment: { type: String },

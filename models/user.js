@@ -2,18 +2,15 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const randToken = require("rand-token");
 autoIncrement = require("mongoose-auto-increment");
+const Account = require("./account");
 
 // User Schema
 const UserSchema = mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true },
-  emailVerified: { type: Boolean, default: false },
-  emailVerificationToken: { type: String },
-  password: { type: String, required: true },
   KYCVerified: { type: Boolean, default: false },
   KYCUpdated: { type: Boolean, default: false },
   SignedContract: { type: Boolean, default: false },
   hasWallet: { type: Boolean, default: false },
-  enabled: { type: Boolean },
   firstName: { type: String },
   lastName: { type: String },
   birthDate: { type: String },
@@ -24,15 +21,7 @@ const UserSchema = mongoose.Schema({
   registeredDate: { type: Date, default: Date.now() },
   referal: { type: String },
   contractType: { type: String, enum: ["Risky", "Normal"] },
-  roles: [{ roleTitle: String }],
-  balance: { type: Number, default: 0 },
-  locale: { type: String, enum: ["fa", "en"], default: "fa" }
-});
-
-UserSchema.plugin(autoIncrement.plugin, {
-  model: "User",
-  field: "UserNumber",
-  startAt: 100000
+  balance: { type: Number, default: 0 }
 });
 
 UserSchema.index(
@@ -90,39 +79,25 @@ module.exports.getUserByNumber = async function(userNumber) {
   return user;
 };
 
-module.exports.addAdministrator = async function(administrator) {
-  const query = { email: administrator.email };
-  admin = await User.findOne(query);
-  if (!admin) {
-    salt = await bcrypt.genSalt(10);
-    hash = await bcrypt.hash(administrator.password, salt);
-    administrator.password = hash;
-  } else {
-    administrator = admin;
-  }
-  administrator.KYCVerified = true;
-  administrator.emailVerified = true;
-  administrator.roles = [
-    { roleTitle: "admin" },
-    { roleTitle: "verifyKYC" },
-    { roleTitle: "changeRoles" },
-    { roleTitle: "answerTickets" },
-    { roleTitle: "userManager" },
-    { roleTitle: "RPCManager" },
-    { roleTitle: "exchanger" }
-  ];
-  return await administrator.save();
-};
-
-module.exports.addUser = async function(newUser) {
+module.exports.addUser = async function(email, password, referal) {
+  await User.checkReferal(referal);
+  var newAccount = new Account({
+    email: email,
+    password: password,
+    emailVerified: false,
+    enabled: true,
+    registeredDate: new Date(),
+    accountType: "User"
+  });
   salt = await bcrypt.genSalt(10);
-  hash = await bcrypt.hash(newUser.password, salt);
-  newUser.password = hash;
+  hash = await bcrypt.hash(newAccount.password, salt);
+  newAccount.password = hash;
   var token = randToken.generate(16);
-  newUser.emailVerificationToken = token;
-  newUser.roles = [{ roleTitle: "user" }];
+  newAccount.emailVerificationToken = token;
   try {
-    return await newUser.save();
+    var newUser = new User({ email: email, referal: referal });
+    await newUser.save();
+    return await newAccount.save();
   } catch (ex) {
     if (ex.code == 11000) {
       throw new Error("Email registered before");
@@ -170,7 +145,8 @@ module.exports.hasRole = async function(roles, requestedRole) {
 
 module.exports.getUserReferals = async function(id) {
   const query = { referal: id };
-  return await User.find(query, callback);
+
+  return await User.find(query, { email: 1, _id: 0 });
 };
 
 module.exports.getUsersList = async function() {

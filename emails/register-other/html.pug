@@ -1,0 +1,8 @@
+include ../header.pug 
+- var link = `${server}/accounts/resetpassword?email=${email}&resetpasswordtoken=${passwordToken}`
+div
+     p سلام،
+     p حساب کاربری شما با موفقیت ایجاد شد. برای انتخاب رمزعبور و فعالسازی حساب کاربری خود بر روی لینک زیر کلیک نمایید:
+          br
+          a(href=link) فعالسازی حساب کاربری و انتخاب رمزعبور
+     include ../signature.pug 

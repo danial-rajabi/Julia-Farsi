@@ -8,7 +8,6 @@ const mongoose = require("mongoose"),
   autoIncrement = require("mongoose-auto-increment");
 require("express-async-errors");
 const config = require("./config/setting");
-const configAdmin = require("./config/admin");
 const errors = require("./middlewares/errors");
 i18n = require("i18n");
 const Email = require("./middlewares/email");
@@ -35,9 +34,8 @@ i18n.configure({
   directory: __dirname + "/locales"
 });
 
-// console.log(__("Hello %s", "Marcus"));
-
 const users = require("./routes/users");
+const accounts = require("./routes/accounts");
 const admins = require("./routes/admins");
 const exchangers = require("./routes/exchangers");
 const tickets = require("./routes/tickets");
@@ -62,24 +60,19 @@ app.use(passport.session());
 require("./config/passport")(passport);
 
 app.use("/users", users);
+app.use("/accounts", accounts);
 app.use("/admins", admins);
 app.use("/exchangers", exchangers);
 app.use("/tickets", tickets);
 app.use("/rpc", rpc);
 app.use(errors);
 
-const User = require("./models/user");
-let administrator = new User({
-  email: configAdmin.email,
-  password: configAdmin.pass,
-  firstName: configAdmin.firstName,
-  lastName: configAdmin.lastName
-});
+const Admin = require("./models/admin");
 // var locals = { ticketNumber: 123, subject: "تست", answerDesc: "باید ابتدا آدرس خود را به درستی وارد نمایید" };
 // Email.sendMail("h.niloofar@gmail.com", "ticketAnswer", locals);
 // var locals = { ticketNumber: ticket.ticketNumber, subject: ticket.subject, answerDesc: answerDesc };
 // Email.sendMail(ticket.userEmail, "ticketAutoClose", locals);
-User.addAdministrator(administrator);
+Admin.addAdministrator();
 
 const Price = require("./models/price");
 var dates = ["2018-09-01", "2018-09-02", "2018-09-04", "2018-09-05", "2018-09-08"];

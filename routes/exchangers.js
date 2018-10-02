@@ -8,8 +8,8 @@ const path = require("path");
 const Log = require("../middlewares/log");
 const Receipt = require("../models/receipt");
 const User = require("../models/user");
-const Email = require("../middlewares/email");
 const autorize = require("../middlewares/authorize");
+const i18n = require("../middlewares/i18n");
 
 var storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -21,9 +21,10 @@ var storage = multer.diskStorage({
   }
 });
 var upload = multer({ storage: storage });
+
 //TODO i18n
 // Upload Sale Receipt by exchanger
-router.post("/receipt", [passport.authenticate("jwt", { session: false }), upload.single("receipt"), autorize], async (req, res, next) => {
+router.post("/receipt", [passport.authenticate("jwt", { session: false }), i18n, upload.single("receipt"), autorize], async (req, res, next) => {
   const userNumber = Number(req.body.userNumber);
 
   user = await User.getUserByNumber(userNumber);

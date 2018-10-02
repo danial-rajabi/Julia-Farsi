@@ -7,6 +7,9 @@ const fs = require("fs");
 const uploadDir = path.join(__dirname, "../uploads");
 const multer = require("multer");
 const randToken = require("rand-token");
+// const randToken = require("rand-token").generator({
+//   chars: "A-Z"
+// });
 
 const User = require("../models/user");
 const Log = require("../middlewares/log");
@@ -14,8 +17,6 @@ const i18n = require("../middlewares/i18n");
 const Email = require("../middlewares/email");
 const DateUtils = require("../middlewares/date-utils");
 const config = require("../config/setting");
-const rpcserver = require("../middlewares/rpcserver");
-const ForgottenPasswordToken = require("../models/forgotPassword");
 const Receipt = require("../models/receipt");
 const BurnRequest = require("../models/burnRequest");
 const Price = require("../models/price");
@@ -33,125 +34,17 @@ var upload = multer({ storage: storage });
 
 //Register
 router.post("/register", i18n, async (req, res, next) => {
-  let newUser = new User({
-    email: req.body.email,
-    password: req.body.password,
-    referal: req.body.referal
-  });
-  isValid = await User.checkReferal(newUser.referal);
-  if (isValid) {
-    user = await User.addUser(newUser);
-    var locals = { server: config.serverAddr, email: user.email, emailVerificationToken: user.emailVerificationToken };
-    Email.sendMail(user.email, "register", locals);
-    Log(req, "Info: User registered successfuly", user.email);
-    return res.json({
-      success: true,
-      msg: __("Your account created successfuly, please verify your email via verification link sent to your meilbox")
-    });
-  }
-});
-
-//Authenticate
-router.post("/authenticate", i18n, async (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
-
-  user = await User.getUserByEmail(email);
-  if (!user.emailVerified) {
-    throw new Error("Email not verified, go to your mailbox and click on verification link");
-  }
-  if (!user.enabled) {
-    throw new Error("Your Account dissabled by admin, please contact to admin");
-  }
-
-  isMatch = await User.comparePassword(password, user.password);
-  if (isMatch) {
-    const token = jwt.sign(user.toJSON(), config.secret, {
-      expiresIn: 604800 // 1 week in sec
-    });
-    Log(req, "Info: User authenticated successfuly", email);
-    user["password"] = "***";
-    return res.json({
-      success: true,
-      token: "JWT " + token,
-      user: user
-    });
-  } else {
-    throw new Error("Wrong Password");
-  }
-});
-
-// Verify Email
-router.get("/verifyemail", i18n, async (req, res, next) => {
-  const verificationToken = req.query.verificationToken;
-  const email = req.query.email;
-  user = await User.getUserByEmail(email);
-  if (user.emailVerificationToken != verificationToken) {
-    Log(req, "Error: Wrong Token", email);
-    return res.redirect('/panel/#/login?msg="' + __("Email Not Verified, Wrong Token") + '"');
-  } else {
-    user.emailVerified = true;
-    await user.save();
-    Log(req, "Info: Email Verified successfuly", email);
-    return res.redirect('/panel/#/login?msg="' + __("Email Verified successfuly") + '"');
-  }
-});
-
-// Forgot Password
-router.post("/forgotpassword", i18n, async (req, res, next) => {
-  let passwordToken = new ForgottenPasswordToken({
-    email: req.body.email
+  const referal = req.body.referal;
+  account = await User.addUser(email, password, referal);
+  var locals = { server: config.serverAddr, email: account.email, emailVerificationToken: account.emailVerificationToken };
+  Email.sendMail(account.email, "register", locals);
+  Log(req, "Info: User registered successfuly", account.email);
+  return res.json({
+    success: true,
+    msg: __("Your account created successfuly, please verify your email via verification link sent to your meilbox")
   });
-  user = await User.getUserByEmail(passwordToken.email);
-  passwordToken = await ForgottenPasswordToken.forgotPassword(passwordToken);
-  var locals = { server: config.serverAddr, email: user.email, passwordToken: passwordToken.token };
-  Email.sendMail(user.email, "resetPassword", locals);
-  return res.json({ success: true, msg: __("Reset Password Email sent to your mailbox") });
-});
-
-// Reset Password
-router.post("/resetpassword", i18n, async (req, res, next) => {
-  const resetPassToken = req.body.resetpasswordtoken;
-  const email = req.body.email;
-  const password = req.body.password;
-
-  token = await ForgottenPasswordToken.getTokenByToken(resetPassToken);
-  if (!token || token.email != email) {
-    throw new Error("Invalid Token entered");
-  } else {
-    token.remove();
-    if (token.expiration < Date.now()) {
-      throw new Error("Expired Token, request reset password again");
-    } else {
-      user = await User.getUserByEmail(email);
-      user = await User.changePassword(user, password);
-      Log(req, "Info: Password reset successfuly", user.email);
-      return res.json({
-        success: true,
-        msg: __("Password changed successfuly")
-      });
-    }
-  }
-});
-
-// Change Password
-router.post("/changepassword", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
-  const email = req.user.email;
-  const oldPassword = req.body.oldPassword;
-  const newPassword = req.body.newPassword;
-  user = await User.getUserByEmail(email);
-
-  isMatch = await User.comparePassword(oldPassword, user.password);
-  if (isMatch) {
-    user = await User.changePassword(user, newPassword);
-    Log(req, "Info: Password changed successfuly", user.email);
-    return res.json({
-      success: true,
-      msg: __("Password changed successfuly")
-    });
-  } else {
-    throw new Error("Wrong Old Password");
-  }
 });
 
 // Update KYC
@@ -203,68 +96,59 @@ router.post("/sign-contract", [passport.authenticate("jwt", { session: false }),
     user.contractType = contractType;
     user.SignedContract = true;
 
-    referal = await User.getUserByStrId(user.referal);
-    referWallet = referal.walletAddress;
-    rpcResponse = await rpcserver.addToWhiteList(user.walletAddress, referWallet);
-
-    if (rpcResponse.success) {
-      Log(req, "Info: Wallet(" + user.walletAddress + ") added to whitelist, txID: " + rpcResponse.msg, "SYSTEM");
-      await user.save();
-      Log(req, "Info: Contract (" + contractType + ") signed by user", req.user.email);
-      return res.json({ success: true, msg: __("Contract Signed successfuly") });
-    } else {
-      throw new Error(rpcResponse.msg);
-    }
+    await user.save();
+    Log(req, "Info: Contract (" + contractType + ") signed by user", req.user.email);
   }
 });
 
 // Get Referals
 router.get("/getreferal", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
-  const userId = req.user._id;
-  referals = await User.getUserReferals(userId);
-  var ReferedUsers = [];
-  referals.forEach(function(referal, index, array) {
-    ReferedUsers.push({ email: referal.email });
-  });
+  const email = req.user.email;
+  user = await User.getUserByEmail(email);
+
+  referals = await User.getUserReferals(user._id);
   Log(req, "Info: Get Refeals successfuly", req.user.email);
-  return res.json({ success: true, referals: ReferedUsers });
+  return res.json({ success: true, referals: referals });
 });
 
 // Upload Sale Receipt by exchanger
-router.post("/receipt", [passport.authenticate("jwt", { session: false }), i18n, upload.single("receipt")], async (req, res, next) => {
-  const userId = req.user._id;
-  const receiptNumber = Number(req.body.receiptNumber);
-  const comment = req.body.comment;
+router.post("/create-receipt", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
+  const email = req.user.email;
+  const amount = req.body.amount;
+  const exchangerEmail = req.body.exchangerEmail;
+  exchanger = await Exchanger.getExchangerByEmail(exchangerEmail);
+  user = await User.getUserByEmail(email);
 
-  receipt = await Receipt.getReceiptByNumber(receiptNumber);
-  if (String(receipt.user._id) != String(userId)) {
-    throw new Error("You can not view others' receipt");
-  } else {
-    receipt.userComment = comment;
-    receipt.userSubmitDate = new Date();
-  }
-  if (req.file) {
-    receipt.userReceipt = req.file.filename;
-  }
-  receipt = await receipt.save();
-  Log(req, "Info: Receipt Number (" + receipt.receiptNumber + ") Updated by user", req.user.email);
-  res.json({ success: true, msg: __("Receipt Number %i updated successfuly", receipt.receiptNumber) });
+  let newReceipt = new Receipt({
+    exchanger: exchanger._id,
+    exchangerEmail: exchanger.email,
+    amount: amount,
+    user: user._id,
+    userEmail: user.email,
+    verificationCode: randToken.generate(10),
+    codeExpiration: await DateUtils.addDays(new Date(), 3),
+    status: "Pending"
+  });
+
+  receipt = await newReceipt.save();
+  Log(req, "Info: Receipt Number (" + receipt.receiptNumber + ") Created", req.user.email);
+  res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") Created" });
 });
 
 // list all Receipt submited for user
 router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
-  const userId = req.user._id;
+  const accountId = req.user._id;
 
-  receipts = await Receipt.getUserReceipts(userId);
+  receipts = await Receipt.getUserReceipts(accountId);
   Log(req, "Info: Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
 
 // list all Pending Receipt submited for user
 router.get("/list-pending-receipt", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
-  const userId = req.user._id;
+  const accountId = req.user._id;
 
-  receipts = await Receipt.getUserReceipts(userId, "Pending");
+  receipts = await Receipt.getUserReceipts(accountId, "Pending");
   Log(req, "Info: Pending Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
@@ -307,10 +191,10 @@ router.post("/burn", [passport.authenticate("jwt", { session: false }), i18n], a
 
 // request to burn some token and give mony
 router.post("/burn-cancel", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
-  const userId = req.user._id;
+  const accountId = req.user._id;
   const burnRequestNumber = Number(req.body.burnRequestNumber);
   burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
-  if (String(burnRequest.user._id) != String(userId)) {
+  if (String(burnRequest.user._id) != String(accountId)) {
     throw new Error("You can not cancel others' burnRequest");
   }
   burnRequest.status = "Canceled";
@@ -354,20 +238,25 @@ router.post("/burn-verify", [passport.authenticate("jwt", { session: false }), i
 
 // list all BurnRequests submited for user
 router.get("/list-burn", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
-  const userId = req.user._id;
+  const accountId = req.user._id;
 
-  burnRequests = await BurnRequests.getUserBurnRequests(userId);
+  burnRequests = await BurnRequests.getUserBurnRequests(accountId);
   Log(req, "Info: BurnRequests list returned", req.user.email);
   res.json({ success: true, burnRequest: burnRequests });
 });
 
 // list all Pending BurnRequests submited for user
 router.get("/list-pending-burn", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
-  const userId = req.user._id;
+  const accountId = req.user._id;
 
-  burnRequests = await BurnRequest.getUserBurnRequests(userId, "Pending");
+  burnRequests = await BurnRequest.getUserBurnRequests(accountId, "Pending");
   Log(req, "Info: Pending BurnRequests list returned", req.user.email);
   res.json({ success: true, burnRequests: burnRequests });
 });
 
+// list all Pending BurnRequests submited for user
+router.get("/test", async (req, res, next) => {
+  token = await randToken.generate(10).toLocaleUpperCase();
+  res.json({ success: true, token: token });
+});
 module.exports = router;

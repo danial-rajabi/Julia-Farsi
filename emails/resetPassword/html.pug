@@ -1,5 +1,6 @@
-- var link = `${server}users/resetpassword?email=${email}&resetpasswordtoken=${passwordToken}`
-div(style={direction: 'rtl', 'font-family': 'monospace'})
+include ../header.pug 
+- var link = `${server}/accounts/resetpassword?email=${email}&resetpasswordtoken=${passwordToken}`
+div
      p سلام،
      p برای بازنشانی مجدد رمزعبور باید بر روی لینک زیر کلیک کنید و سپس در صفحه باز شده رمزعبور جدید برای خود انتخاب نمایید.
           br

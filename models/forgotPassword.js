@@ -1,22 +1,12 @@
 const mongoose = require("mongoose");
-const config = require("../config/setting");
 const randToken = require("rand-token");
+const DateUtils = require("../middlewares/date-utils");
 
 // Forgotten Password Schema
 const ForgottenPasswordTokenSchema = mongoose.Schema({
-  email: {
-    type: String,
-    required: true
-  },
-  token: {
-    type: String,
-    required: true
-  },
-  expiration: {
-    type: Date,
-    // 15 Minutes Later
-    default: Date.now() + 15 * 60 * 1000
-  }
+  email: { type: String, required: true },
+  token: { type: String, required: true },
+  expiration: { type: Date }
 });
 
 const ForgottenPasswordToken = (module.exports = mongoose.model("ForgottenPasswordToken", ForgottenPasswordTokenSchema));
@@ -24,6 +14,7 @@ const ForgottenPasswordToken = (module.exports = mongoose.model("ForgottenPasswo
 module.exports.forgotPassword = async function(forgotPasswordToken) {
   var token = randToken.generate(16);
   forgotPasswordToken.token = token;
+  forgotPasswordToken.expiration = await DateUtils.addminutes(new Date(), 120); // 2 Hours
   return await forgotPasswordToken.save();
 };
 

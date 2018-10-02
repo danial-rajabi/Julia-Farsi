@@ -1,17 +1,93 @@
 const express = require("express");
 const router = express.Router();
 const passport = require("passport");
+const multer = require("multer");
+const path = require("path");
+const randToken = require("rand-token");
 
 const User = require("../models/user");
+const Exchanger = require("../models/exchanger");
+const Admin = require("../models/admin");
 const Receipt = require("../models/receipt");
 const Price = require("../models/price");
+const ForgottenPasswordToken = require("../models/forgotPassword");
 const BurnRequest = require("../models/burnRequest");
 
 const Log = require("../middlewares/log");
 const Email = require("../middlewares/email");
 const autorize = require("../middlewares/authorize");
 const i18n = require("../middlewares/i18n");
+const config = require("../config/setting");
 
+var storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "./uploads");
+  },
+  filename: function(req, file, cb) {
+    raw = randToken.generate(16);
+    cb(null, raw.toString("hex") + Date.now() + path.extname(file.originalname));
+  }
+});
+var upload = multer({ storage: storage });
+
+// Register Exchanger
+router.post(
+  "/register-exchanger",
+  [passport.authenticate("jwt", { session: false }), i18n, autorize, upload.single("image")],
+  async (req, res, next) => {
+    const enabled = req.body.enabled;
+    var newExchanger = new Exchanger({
+      email: req.body.email,
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      address: req.body.address,
+      telephone: req.body.telephone
+    });
+    if (req.file) {
+      newExchanger.imageAddress = req.file.filename;
+    }
+    account = await Exchanger.addExchanger(newExchanger, enabled);
+    var passwordToken = new ForgottenPasswordToken({
+      email: req.body.email
+    });
+    passwordToken = await ForgottenPasswordToken.forgotPassword(passwordToken);
+
+    var locals = { server: config.serverAddr, email: account.email, passwordToken: passwordToken.token };
+    Email.sendMail(account.email, "register-other", locals);
+    Log(req, "Info: Exchanger registered successfuly", account.email);
+    return res.json({
+      success: true,
+      msg: __("Exchanger registered successfuly")
+    });
+  }
+);
+
+// Register Admin
+router.post("/register-admin", [passport.authenticate("jwt", { session: false }), i18n, autorize, upload.single("image")], async (req, res, next) => {
+  const enabled = req.body.enabled;
+  var newAdmin = new Admin({
+    email: req.body.email,
+    firstName: req.body.firstName,
+    lastName: req.body.lastName,
+    superAdmin: false
+  });
+  if (req.file) {
+    newAdmin.imageAddress = req.file.filename;
+  }
+  account = await Admin.addAdmin(newAdmin, enabled);
+  var passwordToken = new ForgottenPasswordToken({
+    email: req.body.email
+  });
+  passwordToken = await ForgottenPasswordToken.forgotPassword(passwordToken);
+
+  var locals = { server: config.serverAddr, email: "account.email", passwordToken: "passwordToken.token" };
+  await Email.sendMail("account.email", "register-other", locals);
+  Log(req, "Info: Admin registered successfuly", account.email);
+  return res.json({
+    success: true,
+    msg: __("Admin registered successfuly")
+  });
+});
 // Verify KYC
 router.post("/verifykyc", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const verifyFirstName = req.body.verifyFirstName;

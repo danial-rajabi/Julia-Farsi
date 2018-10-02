@@ -1,34 +1,54 @@
-const User = require("../models/user");
+const Admin = require("../models/admin");
 const Log = require("../middlewares/log");
 
 module.exports = async function(req, res, next) {
-  const adminRoles = req.user.roles;
-  switch (req.originalUrl) {
-    case "/admins/get-kyc":
-    case "/admins/listkyc":
-    case "/admins/verifykyc":
+  switch (req.baseUrl) {
+    case "/admins":
+      type = "Admin";
+      break;
+    case "/users":
+      type = "User";
+      break;
+    case "/exchangers":
+      type = "Exchanger";
+      break;
+  }
+  if (type != "Admin") {
+    if (req.user.userType != type) {
+      Log(req, "Error: Unauthorized action", req.user.email);
+      return res.sendStatus(401);
+    } else {
+      next();
+    }
+  }
+  const adminEmail = req.user.email;
+  admin = await Admin.getAdminByEmail(adminEmail);
+  switch (req.url) {
+    case "/get-kyc":
+    case "/listkyc":
+    case "/verifykyc":
       role = ["verifyKYC"];
       break;
-    case "/admins/listroles":
-    case "/admins/changeroles":
+    case "/listroles":
+    case "/changeroles":
       role = ["changeRoles"];
       break;
-    case "/admins/enable":
-    case "/admins/disable":
+    case "/enable":
+    case "/disable":
       role = ["userManager"];
       break;
-    case "/admins/list-receipt":
-    case "/admins/list-approved-receipt":
-    case "/admins/list-rejected-receipt":
-    case "/admins/list-pending-receipt":
-    case "/admins/approve-receipt":
-    case "/admins/reject-receipt":
-    case "/admins/list-burn":
-    case "/admins/list-approved-burn":
-    case "/admins/list-rejected-burn":
-    case "/admins/list-pending-burn":
-    case "/admins/approve-burn":
-    case "/admins/reject-burn":
+    case "/list-receipt":
+    case "/list-approved-receipt":
+    case "/list-rejected-receipt":
+    case "/list-pending-receipt":
+    case "/approve-receipt":
+    case "/reject-receipt":
+    case "/list-burn":
+    case "/list-approved-burn":
+    case "/list-rejected-burn":
+    case "/list-pending-burn":
+    case "/approve-burn":
+    case "/reject-burn":
       role = ["financeManager"];
       break;
     case "/tickets/answer":
@@ -38,15 +58,12 @@ module.exports = async function(req, res, next) {
     case "/rpc/token-price":
       role = ["RPCManager"];
       break;
-    case "/exchangers/receipt":
-    case "/exchangers/list-receipt":
-    case "/exchangers/get-kyc":
-      role = ["exchanger"];
-      break;
     default:
       role = [""];
   }
-  hasRole = await User.hasRole(adminRoles, role);
+  hasRole = await Admin.hasRole(admin, role);
+  // console.log(hasRole);
+
   if (!hasRole) {
     Log(req, "Error: Unauthorized action", req.user.email);
     return res.sendStatus(401);

@@ -8,6 +8,7 @@ const path = require("path");
 const Log = require("../middlewares/log");
 const Receipt = require("../models/receipt");
 const User = require("../models/user");
+const Exchanger = require("../models/exchanger");
 const autorize = require("../middlewares/authorize");
 const i18n = require("../middlewares/i18n");
 
@@ -22,44 +23,70 @@ var storage = multer.diskStorage({
 });
 var upload = multer({ storage: storage });
 
-//TODO i18n
 // Upload Sale Receipt by exchanger
-router.post("/receipt", [passport.authenticate("jwt", { session: false }), i18n, upload.single("receipt"), autorize], async (req, res, next) => {
-  const userNumber = Number(req.body.userNumber);
-
-  user = await User.getUserByNumber(userNumber);
-  let newReceipt = new Receipt({
-    exchanger: req.user._id,
-    exchangerEmail: req.user.email,
-    exchangerComment: req.body.comment,
-    exchangerSubmitDate: new Date(),
-    amount: req.body.amount,
-    user: user._id,
-    userEmail: user.email,
-    status: "Pending"
-  });
-  if (req.file) {
-    newReceipt.exchangerReceipt = req.file.filename;
+router.post(
+  "/complete-receipt",
+  [passport.authenticate("jwt", { session: false }), i18n, autorize, upload.single("receipt")],
+  async (req, res, next) => {
+    const email = req.user.email;
+    const comment = req.body.comment;
+    const receiptNumber = Number(req.body.receiptNumber);
+    receipt = await Receipt.getReceiptByNumber(receiptNumber);
+    if (receipt.codeExpiration < new Date() && !receipt.exchangerSubmitDate && !receipt.userSubmitDate) {
+      receipt.status = "Expired";
+      await receipt.save();
+      throw new Error("Reciept Expired");
+    }
+    if (receipt.exchangerEmail != email) {
+      throw new Error("You can not view others' receipt");
+    }
+    if (req.file) {
+      receipt.exchangerReceipt = req.file.filename;
+    }
+    receipt.exchangerComment = comment;
+    receipt.exchangerSubmitDate = new Date();
+    receipt = await receipt.save();
+    Log(req, "Info: Receipt number (" + receipt.receiptNumber + ") Created", req.user.email);
+    res.json({ success: true, msg: __("Your documnets for receipt number %i uploaded successfuly", receipt.receiptNumber) });
   }
-  receipt = await newReceipt.save();
-  Log(req, "Info: Receipt Number (" + receipt.receiptNumber + ") Created", req.user.email);
-  res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") Created" });
+);
+
+// Search Sale Receipt by verificationCode
+router.post("/search-receipt", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  const verificationCode = req.body.verificationCode;
+  receipt = await Receipt.getReceiptByVerificationCode(verificationCode);
+  if (receipt.codeExpiration < new Date()) {
+    receipt.status = "Expired";
+    await receipt.save();
+    throw new Error("Reciept Expired");
+  }
+  Log(req, "Info: Receipt number (" + receipt.receiptNumber + ") returned by search", req.user.email);
+  res.json({ success: true, receipt: receipt });
 });
 
 // Get KYC informations of a user
-router.post("/get-kyc", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
-  const userNumber = Number(req.body.userNumber);
+router.post("/get-user", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  const userEmail = req.body.userEmail;
 
-  user = await User.getUserKYCByNumber(userNumber);
+  user = await User.getUserByEmail(userEmail);
   Log(req, "Info: Get user KYC info successfuly", req.user.email);
   return res.json({ success: true, user: user });
 });
 
-// list all Receipt submited by exchanger
-router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), autorize], async (req, res, next) => {
-  const exchangerId = req.user._id;
+// list all Receipt submited for exchanger
+router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  const email = req.user.email;
 
-  receipts = await Receipt.getExchangerReceipts(exchangerId);
+  receipts = await Receipt.getExchangerReceipts(email);
+  Log(req, "Info: Receipts list returned", req.user.email);
+  res.json({ success: true, receipts: receipts });
+});
+
+// list Pending Receipt submited for exchanger
+router.get("/list-pending-receipt", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  const email = req.user.email;
+
+  receipts = await Receipt.getExchangerReceipts(email, "Pending");
   Log(req, "Info: Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });

@@ -36,6 +36,9 @@ module.exports = async function(req, res, next) {
         break;
       case "/enable":
       case "/disable":
+      case "/admins":
+      case "/exchangers":
+      case "/users":
         role = ["userManager"];
         break;
       case "/list-receipt":

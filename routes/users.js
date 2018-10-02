@@ -16,6 +16,7 @@ const config = require("../config/setting");
 const User = require("../models/user");
 const Receipt = require("../models/receipt");
 const BurnRequest = require("../models/burnRequest");
+const Exchanger = require("../models/exchanger");
 const Price = require("../models/price");
 
 var storage = multer.diskStorage({
@@ -128,11 +129,13 @@ router.get("/getreferal", [passport.authenticate("jwt", { session: false }), i18
   return res.json({ success: true, referals: referals });
 });
 
-// Upload Sale Receipt by exchanger
+// Create Receipt and get code
 router.post("/create-receipt", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const email = req.user.email;
   const amount = req.body.amount;
   const exchangerEmail = req.body.exchangerEmail;
+  console.log(exchangerEmail, "--");
+
   exchanger = await Exchanger.getExchangerByEmail(exchangerEmail);
   user = await User.getUserByEmail(email);
 
@@ -142,30 +145,60 @@ router.post("/create-receipt", [passport.authenticate("jwt", { session: false })
     amount: amount,
     user: user._id,
     userEmail: user.email,
-    verificationCode: randToken.generate(10),
+    verificationCode: randToken.generate(8).toUpperCase(),
     codeExpiration: await DateUtils.addDays(new Date(), 3),
     status: "Pending"
   });
 
   receipt = await newReceipt.save();
-  Log(req, "Info: Receipt Number (" + receipt.receiptNumber + ") Created", req.user.email);
-  res.json({ success: true, msg: "Receipt Number (" + receipt.receiptNumber + ") Created" });
+  Log(req, "Info: Receipt number (" + receipt.receiptNumber + ") Created", req.user.email);
+  res.json({ success: true, msg: __("Receipt number %i created successfuly", receipt.receiptNumber), receipt: receipt });
 });
+
+// Upload Sale Receipt by user
+router.post(
+  "/complete-receipt",
+  [passport.authenticate("jwt", { session: false }), i18n, autorize, upload.single("receipt")],
+  async (req, res, next) => {
+    const email = req.user.email;
+    const comment = req.body.comment;
+    const receiptNumber = Number(req.body.receiptNumber);
+    receipt = await Receipt.getReceiptByNumber(receiptNumber);
+    if (receipt.codeExpiration < new Date() && !receipt.exchangerSubmitDate && !receipt.userSubmitDate) {
+      receipt.status = "Expired";
+      await receipt.save();
+      throw new Error("Reciept Expired");
+    }
+    console.log(receipt.userEmail);
+
+    if (receipt.userEmail != email) {
+      throw new Error("You can not view others' receipt");
+    }
+    if (req.file) {
+      receipt.userReceipt = req.file.filename;
+    }
+    receipt.userSubmitDate = new Date();
+    receipt.userComment = comment;
+    receipt = await receipt.save();
+    Log(req, "Info: Receipt number (" + receipt.receiptNumber + ") Created", req.user.email);
+    res.json({ success: true, msg: __("Your documnets for receipt number %i uploaded successfuly", receipt.receiptNumber) });
+  }
+);
 
 // list all Receipt submited for user
 router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
-  const accountId = req.user._id;
+  const email = req.user.email;
 
-  receipts = await Receipt.getUserReceipts(accountId);
+  receipts = await Receipt.getUserReceipts(email);
   Log(req, "Info: Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
 
 // list all Pending Receipt submited for user
 router.get("/list-pending-receipt", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
-  const accountId = req.user._id;
+  const email = req.user.email;
 
-  receipts = await Receipt.getUserReceipts(accountId, "Pending");
+  receipts = await Receipt.getUserReceipts(email, "Pending");
   Log(req, "Info: Pending Receipts list returned", req.user.email);
   res.json({ success: true, receipts: receipts });
 });
@@ -202,8 +235,8 @@ router.post("/burn", [passport.authenticate("jwt", { session: false }), i18n, au
   burnRequest = await newBurnReq.save();
   var locals = { amount: burnRequest.amount, verificationToken: burnRequest.verificationToken };
   await Email.sendMail(req.user.email, "verifyBurnRequest", locals);
-  Log(req, "Info: BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Submited", req.user.email);
-  res.json({ success: true, msg: __("BurnRequest Number %i Submited", burnRequest.BurnRequestNumber) });
+  Log(req, "Info: BurnRequest number (" + burnRequest.BurnRequestNumber + ") Submited", req.user.email);
+  res.json({ success: true, msg: __("BurnRequest number %i Submited", burnRequest.BurnRequestNumber) });
 });
 
 // request to burn some token and give mony
@@ -216,8 +249,8 @@ router.post("/burn-cancel", [passport.authenticate("jwt", { session: false }), i
   }
   burnRequest.status = "Canceled";
   await burnRequest.save();
-  Log(req, "Info: BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Canceled", req.user.email);
-  res.json({ success: true, msg: __("BurnRequest Number %i Canceled", burnRequest.BurnRequestNumber) });
+  Log(req, "Info: BurnRequest number (" + burnRequest.BurnRequestNumber + ") Canceled", req.user.email);
+  res.json({ success: true, msg: __("BurnRequest number %i Canceled", burnRequest.BurnRequestNumber) });
 });
 
 // Verify Burn resend token
@@ -231,8 +264,8 @@ router.post("/burn-resend-token", [passport.authenticate("jwt", { session: false
   await burnRequest.save();
   var locals = { amount: burnRequest.amount, verificationToken: burnRequest.verificationToken };
   await Email.sendMail(req.user.email, "verifyBurnRequest", locals);
-  Log(req, "Info: Verification email for BurnRequest Number (" + burnRequest.BurnRequestNumber + ") resent", req.user.email);
-  res.json({ success: true, msg: ــ("Verification email for BurnRequest Number %i resent", burnRequest.BurnRequestNumber) });
+  Log(req, "Info: Verification email for BurnRequest number (" + burnRequest.BurnRequestNumber + ") resent", req.user.email);
+  res.json({ success: true, msg: ــ("Verification email for BurnRequest number %i resent", burnRequest.BurnRequestNumber) });
 });
 
 // Verify Burn
@@ -249,8 +282,8 @@ router.post("/burn-verify", [passport.authenticate("jwt", { session: false }), i
   }
   burnRequest.verified = true;
   await burnRequest.save();
-  Log(req, "Info: BurnRequest Number (" + burnRequest.BurnRequestNumber + ") Verified", req.user.email);
-  res.json({ success: true, msg: __("BurnRequest Number %i Verified", burnRequest.BurnRequestNumber) });
+  Log(req, "Info: BurnRequest number (" + burnRequest.BurnRequestNumber + ") Verified", req.user.email);
+  res.json({ success: true, msg: __("BurnRequest number %i Verified", burnRequest.BurnRequestNumber) });
 });
 
 // list all BurnRequests submited for user

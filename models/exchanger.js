@@ -27,6 +27,8 @@ module.exports.getExchangerById = async function(id) {
 
 module.exports.getExchangerByEmail = async function(email) {
   const query = { email: email };
+  console.log(query);
+
   exchanger = await Exchanger.findOne(query);
 
   if (!exchanger) {
@@ -59,7 +61,7 @@ module.exports.addExchanger = async function(newExchanger, enabled) {
   }
 };
 
-module.exports.getExchangerList = async function() {
+module.exports.getExchangersList = async function() {
   const query = {};
   return await Exchanger.find(query);
 };

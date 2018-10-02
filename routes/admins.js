@@ -69,7 +69,7 @@ router.post(
 router.post("/register-admin", [passport.authenticate("jwt", { session: false }), i18n, autorize, upload.single("image")], async (req, res, next) => {
   const enabled = req.body.enabled;
   roles = [];
-  req.body.roles.forEach(async role => {
+  JSON.parse(req.body.roles).forEach(async role => {
     roles.push({ roleTitle: role });
   });
   var newAdmin = new Admin({
@@ -97,6 +97,27 @@ router.post("/register-admin", [passport.authenticate("jwt", { session: false })
   });
 });
 
+// list All admins
+router.get("/admins", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  admins = await Admin.getAdminsList();
+  Log(req, "Info: All admins list returned", req.user.email);
+  res.json({ success: true, admins: admins });
+});
+
+// list All exchangers
+router.get("/exchangers", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  exchangers = await Exchanger.getExchangersList();
+  Log(req, "Info: All exchangers list returned", req.user.email);
+  res.json({ success: true, exchangers: exchangers });
+});
+
+// list All users
+router.get("/users", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  users = await User.getUsersList();
+  Log(req, "Info: All users list returned", req.user.email);
+  res.json({ success: true, users: users });
+});
+
 // list admin's own roles
 router.get("/roles", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const email = req.user.email;
@@ -118,6 +139,7 @@ router.post("/verifykyc", [passport.authenticate("jwt", { session: false }), i18
   const verifyBirthDate = req.body.verifyBirthDate;
   const verifyAddress = req.body.verifyAddress;
   const verifyPassportImage = req.body.verifyPassportImage;
+  const verifyImage = req.body.verifyImage;
   const verifyTelephone = req.body.verifyTelephone;
   const email = req.body.email;
   var verifyWallet = false;
@@ -127,7 +149,16 @@ router.post("/verifykyc", [passport.authenticate("jwt", { session: false }), i18
   } else {
     verifyWallet = true;
   }
-  if (verifyFirstName && verifyLastName && verifyBirthDate && verifyWallet && verifyAddress && verifyPassportImage && verifyTelephone) {
+  if (
+    verifyFirstName &&
+    verifyLastName &&
+    verifyBirthDate &&
+    verifyWallet &&
+    verifyAddress &&
+    verifyPassportImage &&
+    verifyTelephone &&
+    verifyImage
+  ) {
     await Email.sendMail(user.email, "KYCVerified", req.body);
 
     user.KYCUpdated = false;
@@ -175,36 +206,18 @@ router.post("/changeroles", [passport.authenticate("jwt", { session: false }), i
   if (req.body.email == req.user.email) {
     throw new Error("You can not change own role");
   } else {
-    user = await User.getUserByEmail(email);
-    hasAdminRole = await User.hasRole(user.roles, [""]);
-    if (hasAdminRole) {
-      throw new Error("You can not change admin roles");
+    admin = await Admin.getAdminByEmail(email);
+    if (admin.superAdmin) {
+      throw new Error("You can not change superAdmin roles");
     } else {
-      const newRoles = [];
-      if (req.body.user) {
-        newRoles.push({ roleTitle: "user" });
-      }
-      if (req.body.verifyKYC) {
-        newRoles.push({ roleTitle: "verifyKYC" });
-      }
-      if (req.body.changeRoles) {
-        newRoles.push({ roleTitle: "changeRoles" });
-      }
-      if (req.body.changeRoles) {
-        newRoles.push({ roleTitle: "answerTicket" });
-      }
-      if (req.body.changeRoles) {
-        newRoles.push({ roleTitle: "userManager" });
-      }
-      if (req.body.changeRoles) {
-        newRoles.push({ roleTitle: "RPCManager" });
-      }
-      if (req.body.exchanger) {
-        newRoles.push({ roleTitle: "exchanger" });
-      }
-      user.roles = newRoles;
+      roles = [];
+      JSON.parse(req.body.roles).forEach(async role => {
+        roles.push({ roleTitle: role });
+      });
+
+      user.roles = roles;
       var roleStr = "";
-      newRoles.forEach(function(role, index, array) {
+      roles.forEach(function(role, index, array) {
         roleStr = roleStr + role.roleTitle + ",";
       });
       roleStr = roleStr.slice(0, -1);
@@ -213,13 +226,6 @@ router.post("/changeroles", [passport.authenticate("jwt", { session: false }), i
       return res.json({ success: true, msg: "Roles change successfuly" });
     }
   }
-});
-
-// Get Users List for Change roles
-router.get("/listroles", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
-  users = await User.getUsersListRoles();
-  Log(req, "Info: Get users list successfuly", req.user.email);
-  return res.json({ success: true, users: users });
 });
 
 // Get Users List for KYC
@@ -288,8 +294,8 @@ router.post("/approve-receipt", [passport.authenticate("jwt", { session: false }
 
   await user.save();
 
-  Log(req, "Info: Receipt Number (" + receipt.receiptNumber + ") Approved by admin", req.user.email);
-  res.json({ success: true, msg: __("Receipt Number %i approved successfuly", receipt.receiptNumber) });
+  Log(req, "Info: Receipt number (" + receipt.receiptNumber + ") Approved by admin", req.user.email);
+  res.json({ success: true, msg: __("Receipt number %i approved successfuly", receipt.receiptNumber) });
 });
 
 // reject receipt by admin
@@ -307,8 +313,8 @@ router.post("/reject-receipt", [passport.authenticate("jwt", { session: false })
   receipt.adminSubmitDate = new Date();
   receipt.status = "Rejected";
   receipt = await receipt.save();
-  Log(req, "Info: Receipt Number (" + receipt.receiptNumber + ") rejected by admin", req.user.email);
-  res.json({ success: true, msg: __("Receipt Number %i rejected successfuly", receipt.receiptNumber) });
+  Log(req, "Info: Receipt number (" + receipt.receiptNumber + ") rejected by admin", req.user.email);
+  res.json({ success: true, msg: __("Receipt number %i rejected successfuly", receipt.receiptNumber) });
 });
 
 // list all BurnRequest submited
@@ -361,8 +367,8 @@ router.post("/approve-burn", [passport.authenticate("jwt", { session: false }), 
 
   await burnRequest.save();
 
-  Log(req, "Info: BurnRequest Number (" + burnRequest.burnRequestNumber + ") Approved by admin", req.user.email);
-  res.json({ success: true, msg: __("BurnRequest Number %i approved", burnRequest.burnRequestNumber) });
+  Log(req, "Info: BurnRequest number (" + burnRequest.burnRequestNumber + ") Approved by admin", req.user.email);
+  res.json({ success: true, msg: __("BurnRequest number %i approved", burnRequest.burnRequestNumber) });
 });
 
 // reject burn by admin
@@ -380,7 +386,7 @@ router.post("/reject-burn", [passport.authenticate("jwt", { session: false }), i
   burnRequest.status = "Rejected";
 
   await burnRequest.save();
-  Log(req, "Info: BurnRequest Number (" + burnRequest.burnRequestNumber + ") Rejected by admin", req.user.email);
-  res.json({ success: true, msg: __("BurnRequest Number %i rejected", burnRequest.burnRequestNumber) });
+  Log(req, "Info: BurnRequest number (" + burnRequest.burnRequestNumber + ") Rejected by admin", req.user.email);
+  res.json({ success: true, msg: __("BurnRequest number %i rejected", burnRequest.burnRequestNumber) });
 });
 module.exports = router;

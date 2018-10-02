@@ -37,8 +37,8 @@ router.post("/create", passport.authenticate("jwt", { session: false }), upload.
     newTicket.attachmentName = req.file.originalname;
   }
   await newTicket.save();
-  Log(req, "Info: Ticket Number " + newTicket.ticketNumber + " Created", req.user.email);
-  res.json({ success: true, msg: "Ticket Number " + newTicket.ticketNumber + " Created" });
+  Log(req, "Info: Ticket number " + newTicket.ticketNumber + " Created", req.user.email);
+  res.json({ success: true, msg: "Ticket number " + newTicket.ticketNumber + " Created" });
 });
 
 // Cancel own ticket

@@ -2,21 +2,18 @@ const express = require("express");
 const router = express.Router();
 const path = require("path");
 const passport = require("passport");
-const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const uploadDir = path.join(__dirname, "../uploads");
 const multer = require("multer");
 const randToken = require("rand-token");
-// const randToken = require("rand-token").generator({
-//   chars: "A-Z"
-// });
 
-const User = require("../models/user");
 const Log = require("../middlewares/log");
 const i18n = require("../middlewares/i18n");
+const autorize = require("../middlewares/authorize");
 const Email = require("../middlewares/email");
 const DateUtils = require("../middlewares/date-utils");
 const config = require("../config/setting");
+const User = require("../models/user");
 const Receipt = require("../models/receipt");
 const BurnRequest = require("../models/burnRequest");
 const Price = require("../models/price");
@@ -47,8 +44,19 @@ router.post("/register", i18n, async (req, res, next) => {
   });
 });
 
+// Get KYC Code for display in passportImage by user
+router.get("/kyc-code", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  const email = req.user.email;
+  code = randToken.generate(6, "0123456789");
+  user = await User.getUserByEmail(email);
+  user.KYCCode = code;
+  await user.save();
+  Log(req, "Info: KYCCode Returned", user.email);
+  return res.json({ success: true, code: code });
+});
+
 // Update KYC
-router.post("/updatekyc", [passport.authenticate("jwt", { session: false }), i18n, upload.single("passportImage")], async (req, res, next) => {
+router.post("/updatekyc", [passport.authenticate("jwt", { session: false }), i18n, autorize, upload.any()], async (req, res, next) => {
   const email = req.user.email;
 
   user = await User.getUserByEmail(email);
@@ -66,6 +74,15 @@ router.post("/updatekyc", [passport.authenticate("jwt", { session: false }), i18
       if (err) throw err;
     });
   }
+  req.files.forEach(async file => {
+    if (file.fieldname == "passportImage") {
+      user.passportImageAddress = file.filename;
+    }
+    if (file.fieldname == "image") {
+      user.imageAddress = file.filename;
+    }
+  });
+
   if (req.file) {
     user.passportImageAddress = req.file.filename;
   }
@@ -85,7 +102,7 @@ router.post("/updatekyc", [passport.authenticate("jwt", { session: false }), i18
 });
 
 // Sign Contract
-router.post("/sign-contract", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
+router.post("/sign-contract", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const email = req.user.email;
   const contractType = req.body.contractType;
   user = await User.getUserByEmail(email);
@@ -102,7 +119,7 @@ router.post("/sign-contract", [passport.authenticate("jwt", { session: false }),
 });
 
 // Get Referals
-router.get("/getreferal", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
+router.get("/getreferal", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const email = req.user.email;
   user = await User.getUserByEmail(email);
 
@@ -112,7 +129,7 @@ router.get("/getreferal", [passport.authenticate("jwt", { session: false }), i18
 });
 
 // Upload Sale Receipt by exchanger
-router.post("/create-receipt", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
+router.post("/create-receipt", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const email = req.user.email;
   const amount = req.body.amount;
   const exchangerEmail = req.body.exchangerEmail;
@@ -136,7 +153,7 @@ router.post("/create-receipt", [passport.authenticate("jwt", { session: false })
 });
 
 // list all Receipt submited for user
-router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
+router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const accountId = req.user._id;
 
   receipts = await Receipt.getUserReceipts(accountId);
@@ -145,7 +162,7 @@ router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), i
 });
 
 // list all Pending Receipt submited for user
-router.get("/list-pending-receipt", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
+router.get("/list-pending-receipt", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const accountId = req.user._id;
 
   receipts = await Receipt.getUserReceipts(accountId, "Pending");
@@ -154,7 +171,7 @@ router.get("/list-pending-receipt", [passport.authenticate("jwt", { session: fal
 });
 
 // return user balance
-router.get("/balance", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
+router.get("/balance", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const email = req.user.email;
 
   user = await User.getUserByEmail(email);
@@ -163,7 +180,7 @@ router.get("/balance", [passport.authenticate("jwt", { session: false }), i18n],
 });
 
 // request to burn some token and give mony
-router.post("/burn", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
+router.post("/burn", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const amount = req.body.amount;
 
   if (amount > req.user.balance) {
@@ -190,7 +207,7 @@ router.post("/burn", [passport.authenticate("jwt", { session: false }), i18n], a
 });
 
 // request to burn some token and give mony
-router.post("/burn-cancel", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
+router.post("/burn-cancel", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const accountId = req.user._id;
   const burnRequestNumber = Number(req.body.burnRequestNumber);
   burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
@@ -204,7 +221,7 @@ router.post("/burn-cancel", [passport.authenticate("jwt", { session: false }), i
 });
 
 // Verify Burn resend token
-router.post("/burn-resend-token", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
+router.post("/burn-resend-token", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const burnRequestNumber = Number(req.body.burnRequestNumber);
 
   burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
@@ -219,7 +236,7 @@ router.post("/burn-resend-token", [passport.authenticate("jwt", { session: false
 });
 
 // Verify Burn
-router.post("/burn-verify", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
+router.post("/burn-verify", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const verificationToken = req.body.verificationToken;
 
   const burnRequestNumber = Number(req.body.burnRequestNumber);
@@ -237,7 +254,7 @@ router.post("/burn-verify", [passport.authenticate("jwt", { session: false }), i
 });
 
 // list all BurnRequests submited for user
-router.get("/list-burn", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
+router.get("/list-burn", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const accountId = req.user._id;
 
   burnRequests = await BurnRequests.getUserBurnRequests(accountId);
@@ -246,7 +263,7 @@ router.get("/list-burn", [passport.authenticate("jwt", { session: false }), i18n
 });
 
 // list all Pending BurnRequests submited for user
-router.get("/list-pending-burn", [passport.authenticate("jwt", { session: false }), i18n], async (req, res, next) => {
+router.get("/list-pending-burn", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const accountId = req.user._id;
 
   burnRequests = await BurnRequest.getUserBurnRequests(accountId, "Pending");
@@ -254,9 +271,4 @@ router.get("/list-pending-burn", [passport.authenticate("jwt", { session: false 
   res.json({ success: true, burnRequests: burnRequests });
 });
 
-// list all Pending BurnRequests submited for user
-router.get("/test", async (req, res, next) => {
-  token = await randToken.generate(10).toLocaleUpperCase();
-  res.json({ success: true, token: token });
-});
 module.exports = router;

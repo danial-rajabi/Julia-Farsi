@@ -117,5 +117,10 @@ module.exports.getAdminsList = async function() {
 
 module.exports.getRoles = async function(email) {
   const query = { email: email };
-  return await Admin.find(query, { roles: 1, _id: 0 });
+  roles = await Admin.find(query, { roles: 1, _id: 0 });
+  return roles[0].roles;
+};
+
+module.exports.getAllRoles = async function(email) {
+  return AllRoles;
 };

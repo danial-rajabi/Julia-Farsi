@@ -7,6 +7,7 @@ const Account = require("./account");
 // User Schema
 const UserSchema = mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true },
+  KYCCode: { type: String },
   KYCVerified: { type: Boolean, default: false },
   KYCUpdated: { type: Boolean, default: false },
   SignedContract: { type: Boolean, default: false },
@@ -18,6 +19,7 @@ const UserSchema = mongoose.Schema({
   walletAddress: { type: String, lowercase: true },
   telephone: { type: String },
   passportImageAddress: { type: String },
+  imageAddress: { type: String },
   registeredDate: { type: Date, default: Date.now() },
   referal: { type: String },
   contractType: { type: String, enum: ["Risky", "Normal"] },

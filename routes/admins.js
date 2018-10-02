@@ -35,6 +35,9 @@ router.post(
   "/register-exchanger",
   [passport.authenticate("jwt", { session: false }), i18n, autorize, upload.single("image")],
   async (req, res, next) => {
+    // console.log(req.body);
+    // roles = [req.body.roles];
+    console.log(req.body.roles);
     const enabled = req.body.enabled;
     var newExchanger = new Exchanger({
       email: req.body.email,
@@ -65,10 +68,15 @@ router.post(
 // Register Admin
 router.post("/register-admin", [passport.authenticate("jwt", { session: false }), i18n, autorize, upload.single("image")], async (req, res, next) => {
   const enabled = req.body.enabled;
+  roles = [];
+  req.body.roles.forEach(async role => {
+    roles.push({ roleTitle: role });
+  });
   var newAdmin = new Admin({
     email: req.body.email,
     firstName: req.body.firstName,
     lastName: req.body.lastName,
+    roles: roles,
     superAdmin: false
   });
   if (req.file) {
@@ -94,6 +102,12 @@ router.get("/roles", [passport.authenticate("jwt", { session: false }), i18n, au
   const email = req.user.email;
   roles = await Admin.getRoles(email);
   Log(req, "Info: Roles returned", req.user.email);
+  res.json({ success: true, roles: roles });
+});
+// list admin's own roles
+router.get("/all-roles", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  roles = await Admin.getAllRoles();
+  Log(req, "Info: All Roles returned", req.user.email);
   res.json({ success: true, roles: roles });
 });
 

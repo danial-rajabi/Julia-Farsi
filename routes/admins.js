@@ -88,8 +88,8 @@ router.post("/register-admin", [passport.authenticate("jwt", { session: false })
   });
   passwordToken = await ForgottenPasswordToken.forgotPassword(passwordToken);
 
-  var locals = { server: config.serverAddr, email: "account.email", passwordToken: "passwordToken.token" };
-  await Email.sendMail("account.email", "register-other", locals);
+  var locals = { server: config.serverAddr, email: account.email, passwordToken: passwordToken.token };
+  await Email.sendMail(account.email, "register-other", locals);
   Log(req, "Info: Admin registered successfuly", account.email);
   return res.json({
     success: true,

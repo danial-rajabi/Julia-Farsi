@@ -73,6 +73,13 @@ router.post("/get-user", [passport.authenticate("jwt", { session: false }), i18n
   return res.json({ success: true, user: user });
 });
 
+// exchanger profile information
+router.get("/profile", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  exchanger = await Exchanger.getExchangerByEmail(req.user.email);
+  Log(req, "Info: User profile returned", req.user.email);
+  res.json({ success: true, exchanger: exchanger });
+});
+
 // list all Receipt submited for exchanger
 router.get("/list-receipt", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const email = req.user.email;

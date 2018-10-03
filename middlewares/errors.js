@@ -9,6 +9,7 @@ module.exports = function(err, req, res, next) {
   }
 
   Log(req, "Error: " + err.message, email);
+  console.log(err);
 
   res.json({ success: false, msg: __(err.message) });
 };

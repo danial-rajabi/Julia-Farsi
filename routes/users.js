@@ -56,6 +56,28 @@ router.get("/kyc-code", [passport.authenticate("jwt", { session: false }), i18n,
   return res.json({ success: true, code: code });
 });
 
+// user profile information
+router.get("/profile", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  user = await User.getUserByEmail(req.user.email);
+  Log(req, "Info: User profile returned", req.user.email);
+  res.json({ success: true, user: user });
+});
+
+// list All exchangers
+router.get("/exchangers", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  exchangers = await Exchanger.getEnabledExchangersList();
+  Log(req, "Info: All exchangers list returned", req.user.email);
+  res.json({ success: true, exchangers: exchangers });
+});
+
+// get exchanger informations
+router.post("/exchanger", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
+  exchangerEmail = req.body.email;
+  exchanger = await Exchanger.getExchangerByEmail(exchangerEmail);
+  Log(req, "Info: Exchanger profile returned", req.user.email);
+  res.json({ success: true, exchanger: exchanger });
+});
+
 // Update KYC
 router.post("/updatekyc", [passport.authenticate("jwt", { session: false }), i18n, autorize, upload.any()], async (req, res, next) => {
   const email = req.user.email;

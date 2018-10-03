@@ -20,7 +20,7 @@ const Exchanger = (module.exports = mongoose.model("Exchanger", ExchangerSchema)
 module.exports.getExchangerById = async function(id) {
   exchanger = await Exchanger.findById(id);
   if (!exchanger) {
-    throw new Error("User not found");
+    throw new Error("Exchanger not found");
   }
   return exchanger;
 };
@@ -64,4 +64,28 @@ module.exports.addExchanger = async function(newExchanger, enabled) {
 module.exports.getExchangersList = async function() {
   const query = {};
   return await Exchanger.find(query);
+  // Exchanger.aggregate([
+  //   { $lookup:
+  //      {
+  //        from: 'accounts',
+  //        localField: 'email',
+  //        foreignField: 'email',
+  //        as: 'orderdetails'
+  //      }
+  //    }
+  //   ])
+};
+
+module.exports.getEnabledExchangersList = async function() {
+  const query = {};
+  exchangers = await Exchanger.find(query);
+  var exList = [];
+
+  for (exchanger of exchangers) {
+    account = await Account.getAccountByEmail(exchanger.email);
+    if (account.enabled) {
+      exList.push(exchanger);
+    }
+  }
+  return exList;
 };

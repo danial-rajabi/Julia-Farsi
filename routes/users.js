@@ -13,6 +13,7 @@ const autorize = require("../middlewares/authorize");
 const Email = require("../middlewares/email");
 const DateUtils = require("../middlewares/date-utils");
 const config = require("../config/setting");
+const Account = require("../models/account");
 const User = require("../models/user");
 const Receipt = require("../models/receipt");
 const BurnRequest = require("../models/burnRequest");
@@ -72,7 +73,7 @@ router.get("/exchangers", [passport.authenticate("jwt", { session: false }), i18
 
 // get exchanger informations
 router.post("/exchanger", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
-  exchangerEmail = req.body.email;
+  exchangerEmail = req.body.exchangerEmail;
   exchanger = await Exchanger.getExchangerByEmail(exchangerEmail);
   Log(req, "Info: Exchanger profile returned", req.user.email);
   res.json({ success: true, exchanger: exchanger });
@@ -234,11 +235,18 @@ router.get("/balance", [passport.authenticate("jwt", { session: false }), i18n, 
   res.json({ success: true, balance: user.balance });
 });
 
-// request to burn some token and give mony
+// request to burn some token and give money
 router.post("/burn", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
   const amount = req.body.amount;
+  const password = req.body.password;
+  account = await Account.getAccountByEmail(req.user.email);
+  isMatch = await Account.comparePassword(password, account.password);
 
-  if (amount > req.user.balance) {
+  if (!isMatch) {
+    throw new Error("Wrong Password");
+  }
+  user = await User.getUserByEmail(req.user.email);
+  if (amount > user.balance) {
     throw new Error("Requested amount greater than your balance");
   }
   const price = await Price.getLastPrice();
@@ -249,14 +257,11 @@ router.post("/burn", [passport.authenticate("jwt", { session: false }), i18n, au
     userSubmitDate: new Date(),
     amount: amount,
     tokenPrice: price.price,
-    verificationToken: randToken.generate(8),
-    verificationTokenExpire: await DateUtils.addminutes(new Date(), 15),
-    verified: false,
     status: "Pending"
   });
   burnRequest = await newBurnReq.save();
-  var locals = { amount: burnRequest.amount, verificationToken: burnRequest.verificationToken };
-  await Email.sendMail(req.user.email, "verifyBurnRequest", locals);
+  var locals = { amount: burnRequest.amount, BurnRequestNumber: burnRequest.BurnRequestNumber };
+  await Email.sendMail(req.user.email, "submitBurnRequest", locals);
   Log(req, "Info: BurnRequest number (" + burnRequest.BurnRequestNumber + ") Submited", req.user.email);
   res.json({ success: true, msg: __("BurnRequest number %i Submited", burnRequest.BurnRequestNumber) });
 });
@@ -273,39 +278,6 @@ router.post("/burn-cancel", [passport.authenticate("jwt", { session: false }), i
   await burnRequest.save();
   Log(req, "Info: BurnRequest number (" + burnRequest.BurnRequestNumber + ") Canceled", req.user.email);
   res.json({ success: true, msg: __("BurnRequest number %i Canceled", burnRequest.BurnRequestNumber) });
-});
-
-// Verify Burn resend token
-router.post("/burn-resend-token", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
-  const burnRequestNumber = Number(req.body.burnRequestNumber);
-
-  burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
-  burnRequest.verificationToken = randToken.generate(8);
-  burnRequest.verificationTokenExpire = await DateUtils.addminutes(new Date(), 15);
-  burnRequest.verified = false;
-  await burnRequest.save();
-  var locals = { amount: burnRequest.amount, verificationToken: burnRequest.verificationToken };
-  await Email.sendMail(req.user.email, "verifyBurnRequest", locals);
-  Log(req, "Info: Verification email for BurnRequest number (" + burnRequest.BurnRequestNumber + ") resent", req.user.email);
-  res.json({ success: true, msg: ــ("Verification email for BurnRequest number %i resent", burnRequest.BurnRequestNumber) });
-});
-
-// Verify Burn
-router.post("/burn-verify", [passport.authenticate("jwt", { session: false }), i18n, autorize], async (req, res, next) => {
-  const verificationToken = req.body.verificationToken;
-
-  const burnRequestNumber = Number(req.body.burnRequestNumber);
-
-  burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
-  if (burnRequest.verificationToken != verificationToken) {
-    throw new Error("Entered code is incorrect");
-  } else if (burnRequest.verificationTokenExpire < Date.now()) {
-    throw new Error("Entered code is expired, please request again to send new code");
-  }
-  burnRequest.verified = true;
-  await burnRequest.save();
-  Log(req, "Info: BurnRequest number (" + burnRequest.BurnRequestNumber + ") Verified", req.user.email);
-  res.json({ success: true, msg: __("BurnRequest number %i Verified", burnRequest.BurnRequestNumber) });
 });
 
 // list all BurnRequests submited for user

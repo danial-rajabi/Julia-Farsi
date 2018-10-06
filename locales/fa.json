@@ -48,5 +48,6 @@
   "Exchanger registered successfuly": "کاربر صراف با موفقیت ایجاد شد",
   "Reciept Expired": "رسید خرید منقضی شده است",
   "Admin registered successfuly": "کاربر مدیر با موفقیت ایجاد شد",
-  "Receipt not found": "رسید خرید توکن مورد نظر یافت نشد"
+  "Receipt not found": "رسید خرید توکن مورد نظر یافت نشد",
+  "BurnRequest not found": "درخواست فروش توکن مورد نظر یافت نشد"
 }

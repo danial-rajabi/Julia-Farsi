@@ -5,9 +5,6 @@ var Schema = mongoose.Schema;
 const BurnRequestSchema = mongoose.Schema({
   amount: { type: Number, required: true },
   tokenPrice: { type: Number, required: true },
-  verificationToken: { type: String, required: true },
-  verificationTokenExpire: { type: Date, required: true },
-  verified: { type: Boolean, required: true, default: false },
   user: { type: Schema.Types.ObjectId, ref: "User", required: true },
   userEmail: { type: String, required: true },
   userComment: { type: String },

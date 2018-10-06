@@ -1,0 +1,9 @@
+include ../header.pug 
+div
+     p سلام،
+     p درخواست شماره #{BurnRequestNumber} جهت فروش #{amount} توکن توسط مدیر سیستم 
+          if approved
+               | تایید شد.
+          else
+               | رد شد.
+     include ../signature.pug 

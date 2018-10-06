@@ -288,12 +288,11 @@ router.post("/approve-receipt", [passport.authenticate("jwt", { session: false }
   receipt.adminSubmitDate = new Date();
   receipt.status = "Approved";
   price = await Price.getLastPrice(receipt.userSubmitDate);
-  user = await User.getUserByIdAsync(receipt.user);
+  user = await User.getUserByEmail(receipt.userEmail);
   user.balance += receipt.amount / price.price;
   await receipt.save();
 
   await user.save();
-
   Log(req, "Info: Receipt number (" + receipt.receiptNumber + ") Approved by admin", req.user.email);
   res.json({ success: true, msg: __("Receipt number %i approved successfuly", receipt.receiptNumber) });
 });
@@ -350,6 +349,7 @@ router.post("/approve-burn", [passport.authenticate("jwt", { session: false }), 
   const burnRequestNumber = Number(req.body.burnRequestNumber);
 
   burnRequest = await BurnRequest.getBurnRequestByNumber(burnRequestNumber);
+
   if (burnRequest.status != "Pending") {
     throw new Error("Admin can approve pending burnRequests only");
   }
@@ -358,17 +358,20 @@ router.post("/approve-burn", [passport.authenticate("jwt", { session: false }), 
   burnRequest.adminComment = req.body.comment;
   burnRequest.adminSubmitDate = new Date();
   burnRequest.status = "Approved";
-  user = await User.getUserByIdAsync(burnRequest.user);
-  if (burnRequest.amount > burnRequest.balance) {
+  user = await User.getUserByEmail(burnRequest.userEmail);
+  if (burnRequest.amount > user.balance) {
     throw new Error("Requested amount greater than user's balance");
   }
   user.balance = user.balance - burnRequest.amount;
   await user.save();
 
   await burnRequest.save();
+  var locals = { amount: burnRequest.amount, BurnRequestNumber: burnRequest.BurnRequestNumber, approved: true };
+  await Email.sendMail(req.user.email, "responseBurnRequest", locals);
+  Log(req, "Info: BurnRequest number (" + burnRequest.BurnRequestNumber + ") Approved by admin", req.user.email);
+  console.log(burnRequest);
 
-  Log(req, "Info: BurnRequest number (" + burnRequest.burnRequestNumber + ") Approved by admin", req.user.email);
-  res.json({ success: true, msg: __("BurnRequest number %i approved", burnRequest.burnRequestNumber) });
+  res.json({ success: true, msg: __("BurnRequest number %i approved", burnRequest.BurnRequestNumber) });
 });
 
 // reject burn by admin
@@ -384,9 +387,11 @@ router.post("/reject-burn", [passport.authenticate("jwt", { session: false }), i
   burnRequest.adminComment = req.body.comment;
   burnRequest.adminSubmitDate = new Date();
   burnRequest.status = "Rejected";
-
   await burnRequest.save();
-  Log(req, "Info: BurnRequest number (" + burnRequest.burnRequestNumber + ") Rejected by admin", req.user.email);
-  res.json({ success: true, msg: __("BurnRequest number %i rejected", burnRequest.burnRequestNumber) });
+
+  var locals = { amount: burnRequest.amount, BurnRequestNumber: burnRequest.BurnRequestNumber, approved: false };
+  await Email.sendMail(req.user.email, "responseBurnRequest", locals);
+  Log(req, "Info: BurnRequest number (" + burnRequest.BurnRequestNumber + ") Rejected by admin", req.user.email);
+  res.json({ success: true, msg: __("BurnRequest number %i rejected", burnRequest.BurnRequestNumber) });
 });
 module.exports = router;

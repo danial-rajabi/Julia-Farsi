@@ -169,15 +169,7 @@ module.exports.getUsersListRoles = async function() {
 module.exports.getUsersListKYC = async function() {
   const query = { KYCUpdated: true, KYCVerified: false };
   return await User.find(query, {
-    email: 1,
-    firstName: 1,
-    lastName: 1,
-    birthDate: 1,
-    address: 1,
-    walletAddress: 1,
-    telephone: 1,
-    passportImageAddress: 1,
-    registeredDate: 1
+    password: 0
   });
 };
 
